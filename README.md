@@ -1,5 +1,7 @@
 # DLC Unlocker
 
+![Screenshot do projeto](https://i.imgur.com/PRTLrT1.png)
+
 Este projeto é uma ferramenta em Python para gerenciar downloads e instalação de DLCs do The Sims 4, além de integrar um desbloqueio/assistente para o EA App em prefixes Wine/Steam/Lutris/Bottles.
 
 ## O que faz
