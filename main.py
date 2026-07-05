@@ -22,7 +22,7 @@ try:
 except ImportError:
     raise SystemExit(
         "O módulo 'libtorrent' não foi encontrado.\n"
-        "Rode ./instalar.sh para instalar as dependências do sistema."
+        "Rode ./install.sh para instalar as dependências do sistema."
     )
 
 # ---------------------------------------------------------------------------
@@ -90,9 +90,7 @@ def salvar_config(config):
 def escrever_log(mensagem):
     PASTA_LOGS.mkdir(parents=True, exist_ok=True)
     with open(PASTA_LOGS / "dlc_manager.log", "a", encoding="utf-8") as f:
-        from datetime import datetime
         f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {mensagem}\n")
-
 
 
 # ---------------------------------------------------------------------------
@@ -118,8 +116,8 @@ class GerenciadorTorrents:
         self.session         = lt.session({"listen_interfaces": "0.0.0.0:6881"})
         self.pasta_downloads = pasta_downloads
         self.log             = log
-        self.handles         = {}   # item_id -> handle
-        self.callbacks       = {}   # item_id -> função(status)
+        self.handles         = {}
+        self.callbacks       = {}
         self._rodando        = True
         self._thread = threading.Thread(target=self._loop_status, daemon=True)
         self._thread.start()
@@ -146,6 +144,13 @@ class GerenciadorTorrents:
                 if callback:
                     callback(status)
             time.sleep(1)
+
+    def cancelar(self, item_id):
+        """Pausa o torrent e remove da sessão, mantendo os arquivos parciais."""
+        handle = self.handles.pop(item_id, None)
+        self.callbacks.pop(item_id, None)
+        if handle and handle.is_valid():
+            self.session.remove_torrent(handle, 0)  # 0 = mantém arquivos
 
     def parar(self):
         self._rodando = False
@@ -246,8 +251,8 @@ class CartaoArquivo(ctk.CTkFrame):
     def __init__(self, master, item_id, item, on_baixar, **kwargs):
         super().__init__(master, corner_radius=12,
                          fg_color=("#EAEAEA", "#242424"), **kwargs)
-        self.item_id  = item_id
-        self.item     = item
+        self.item_id   = item_id
+        self.item      = item
         self.on_baixar = on_baixar
 
         self.grid_columnconfigure(1, weight=1)
@@ -275,12 +280,28 @@ class CartaoArquivo(ctk.CTkFrame):
 
         self.botao = ctk.CTkButton(self, text="⬇ Baixar",
                                    width=100, command=self._clicar)
-        self.botao.grid(row=0, column=2, rowspan=3, padx=14, pady=14)
+        self.botao.grid(row=0, column=2, padx=(14, 4), pady=(14, 4))
+
+        self.botao_cancelar = ctk.CTkButton(self, text="✕ Cancelar",
+                                            width=100,
+                                            fg_color="#5c1a1a",
+                                            hover_color="#8B0000",
+                                            command=self._cancelar)
+        self.botao_cancelar.grid(row=1, column=2, padx=(14, 4), pady=(0, 14))
+        self.botao_cancelar.grid_remove()  # escondido até o download começar
+
+        self._on_cancelar = None  # callback definido pelo App
 
     def _clicar(self):
         self.botao.configure(state="disabled", text="Baixando...")
         self.status_label.configure(text="Iniciando...")
+        self.botao_cancelar.grid()  # mostra o botão cancelar
         self.on_baixar(self.item_id, self.item)
+
+    def _cancelar(self):
+        self.botao_cancelar.configure(state="disabled", text="Cancelando…")
+        if self._on_cancelar:
+            self._on_cancelar(self.item_id)
 
     def atualizar_status(self, status):
         progresso    = status.progress
@@ -297,10 +318,70 @@ class CartaoArquivo(ctk.CTkFrame):
         if concluido:
             self.status_label.configure(text="Concluído ✔", text_color="#2FA572")
             self.botao.configure(text="Concluído", state="disabled")
+            self.botao_cancelar.grid_remove()
         else:
             self.status_label.configure(
                 text=f"{estado_texto} • {progresso*100:.1f}% • {vel_kb:.0f} KB/s • {peers} peers",
                 text_color="gray60")
+
+
+# ---------------------------------------------------------------------------
+# JANELA DE PROGRESSO BASE (reutilizada por Extrair e Mover)
+# ---------------------------------------------------------------------------
+class JanelaProgresso(ctk.CTkToplevel):
+    def __init__(self, master, titulo, subtitulo):
+        super().__init__(master)
+        self.title(titulo)
+        self.geometry("540x280")
+        self.resizable(False, False)
+        self.grab_set()
+
+        ctk.CTkLabel(self, text=titulo,
+                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(24, 2))
+
+        self.lbl_sub = ctk.CTkLabel(self, text=subtitulo,
+                                    text_color="gray60",
+                                    font=ctk.CTkFont(size=11))
+        self.lbl_sub.pack(pady=(0, 16))
+
+        # Barra geral
+        row_g = ctk.CTkFrame(self, fg_color="transparent")
+        row_g.pack(fill="x", padx=30)
+        self.lbl_geral = ctk.CTkLabel(row_g, text="Aguardando…",
+                                      text_color="gray60",
+                                      font=ctk.CTkFont(size=10), anchor="w")
+        self.lbl_geral.pack(side="left")
+        self.lbl_conta = ctk.CTkLabel(row_g, text="0 / 0",
+                                      text_color="gray60",
+                                      font=ctk.CTkFont(size=10), anchor="e")
+        self.lbl_conta.pack(side="right")
+        self.prog_geral = ctk.CTkProgressBar(self, width=480)
+        self.prog_geral.set(0)
+        self.prog_geral.pack(padx=30, pady=(4, 14))
+
+        # Barra atual
+        self.lbl_atual = ctk.CTkLabel(self, text="",
+                                      text_color="gray60",
+                                      font=ctk.CTkFont(size=10), anchor="w")
+        self.lbl_atual.pack(fill="x", padx=30)
+        self.prog_atual = ctk.CTkProgressBar(self, width=480,
+                                             progress_color="#2FA572")
+        self.prog_atual.set(0)
+        self.prog_atual.pack(padx=30, pady=(4, 0))
+
+        self.lbl_detalhe = ctk.CTkLabel(self, text="",
+                                        text_color="gray60",
+                                        font=ctk.CTkFont(size=9))
+        self.lbl_detalhe.pack(pady=(4, 0))
+
+    def atualizar(self, geral_txt, conta_txt, geral_pct,
+                  atual_txt, atual_pct, detalhe_txt=""):
+        self.lbl_geral.configure(text=geral_txt)
+        self.lbl_conta.configure(text=conta_txt)
+        self.prog_geral.set(geral_pct)
+        self.lbl_atual.configure(text=atual_txt)
+        self.prog_atual.set(atual_pct)
+        self.lbl_detalhe.configure(text=detalhe_txt)
 
 
 # ---------------------------------------------------------------------------
@@ -335,12 +416,17 @@ class App(ctk.CTk):
         ctk.CTkLabel(header, text="DLC Unlocker",
                      font=ctk.CTkFont(size=24, weight="bold")).pack(side="left")
 
-        ctk.CTkButton(header, text="📂  Organizar DLCs", width=140,
-                      command=self._abrir_janela_organizar
-                      ).pack(side="right", padx=(8, 0))
+        # Botões do lado direito (ordem reversa por causa do pack side=right)
+        ctk.CTkButton(header, text="📂 Mover",
+                      width=90, fg_color="#1a5c2a", hover_color="#14451f",
+                      command=self._abrir_mover).pack(side="right", padx=(4, 0))
+
+        ctk.CTkButton(header, text="📦 Extrair",
+                      width=90, fg_color="#1a3a5c", hover_color="#14293f",
+                      command=self._abrir_extrair).pack(side="right", padx=(4, 0))
 
         ctk.CTkButton(header, text="🛠 EA Unlocker", width=120,
-                      command=self._abrir_unlocker).pack(side="right")
+                      command=self._abrir_unlocker).pack(side="right", padx=(4, 0))
 
         self.contador_label = ctk.CTkLabel(header,
                                            text=f"{len(ARQUIVOS)} itens",
@@ -398,6 +484,7 @@ class App(ctk.CTk):
             escrever_log(mensagem)
         except Exception:
             pass
+
     def _montar_lista(self):
         for w in self.scroll_frame.winfo_children():
             w.destroy()
@@ -438,8 +525,21 @@ class App(ctk.CTk):
             if cartao:
                 self.after(0, lambda: cartao.atualizar_status(status))
 
+        cartao = self.cartoes.get(item_id)
         self.gerenciador.adicionar_magnet(item_id, magnet, callback_status)
         self._log(f"Download iniciado: {item['nome']}")
+
+        # Liga o botão cancelar ao handle do torrent
+        if cartao:
+            def cancelar(iid=item_id, c=cartao):
+                self.gerenciador.cancelar(iid)
+                c.status_label.configure(text="Cancelado", text_color="gray60")
+                c.progress_bar.set(0)
+                c.botao.configure(state="normal", text="⬇ Baixar")
+                c.botao_cancelar.grid_remove()
+                c.botao_cancelar.configure(state="normal", text="✕ Cancelar")
+                self._log(f"Download cancelado: {item['nome']} (progresso mantido)")
+            cartao._on_cancelar = cancelar
 
     def _alterar_pasta(self):
         nova = filedialog.askdirectory(
@@ -458,8 +558,11 @@ class App(ctk.CTk):
         self.destroy()
 
     # ------------------------------------------------------------------
-    # ORGANIZAR DLCs
+    # HELPERS COMPARTILHADOS
     # ------------------------------------------------------------------
+    def _pasta_downloads(self):
+        return Path(self.config_dados["pasta_downloads"])
+
     def _encontrar_pasta_sims(self):
         home = Path.home()
         steam_paths = [
@@ -485,12 +588,89 @@ class App(ctk.CTk):
                     pass
         return None
 
-    def _abrir_janela_organizar(self):
-        pasta_downloads = Path(self.config_dados["pasta_downloads"])
-        zips = list(pasta_downloads.glob("*.zip"))
+    # ------------------------------------------------------------------
+    # EXTRAIR
+    # ------------------------------------------------------------------
+    def _abrir_extrair(self):
+        pasta = self._pasta_downloads()
+        zips  = list(pasta.glob("*.zip"))
         if not zips:
             messagebox.showwarning("Nada encontrado",
-                                   f"Nenhum .zip encontrado em:\n{pasta_downloads}")
+                                   f"Nenhum .zip encontrado em:\n{pasta}")
+            return
+
+        win = JanelaProgresso(self, "📦 Extraindo DLCs",
+                              f"{len(zips)} arquivo(s) .zip encontrado(s)")
+        threading.Thread(target=self._executar_extracao,
+                         args=(zips, win), daemon=True).start()
+
+    def _executar_extracao(self, zips, win):
+        total  = len(zips)
+        erros  = []
+
+        for i, zip_path in enumerate(zips):
+            nome_zip       = zip_path.stem          # Sims4_DLC_EP02_Get_Together
+            pasta_destino  = zip_path.parent / nome_zip  # extrai para subpasta com mesmo nome
+
+            # Atualiza barra geral
+            self.after(0, lambda n=nome_zip, i=i, t=total: win.atualizar(
+                f"Extraindo: {n}", f"{i} / {t}", i / t,
+                "Preparando…", 0))
+
+            try:
+                pasta_destino.mkdir(parents=True, exist_ok=True)
+
+                with zipfile.ZipFile(zip_path, "r") as zf:
+                    membros       = zf.infolist()
+                    total_membros = len(membros)
+
+                    for j, membro in enumerate(membros):
+                        # Extrai sempre dentro de pasta_destino
+                        zf.extract(membro, pasta_destino)
+                        pct     = (j + 1) / total_membros
+                        detalhe = f"{j+1} / {total_membros} arquivos"
+                        self.after(0, lambda p=pct, d=detalhe, n=nome_zip, i=i, t=total:
+                                   win.atualizar(
+                                       f"Extraindo: {n}", f"{i+1} / {t}", (i + p) / t,
+                                       f"Arquivo {j+1} de {total_membros}", p, d))
+
+                self._log(f"✔ Extraído: {nome_zip}")
+
+            except zipfile.BadZipFile:
+                erros.append(f"{nome_zip}: zip corrompido")
+                self._log(f"✘ Corrompido: {nome_zip}")
+            except Exception as e:
+                erros.append(f"{nome_zip}: {e}")
+                self._log(f"✘ Erro: {nome_zip}: {e}")
+
+        def finalizar():
+            win.destroy()
+            msg = f"Extração concluída!\n{total - len(erros)} de {total} arquivos extraídos."
+            if erros:
+                msg += "\n\nErros:\n" + "\n".join(f"• {e}" for e in erros)
+                messagebox.showwarning("Extração com erros", msg)
+            else:
+                messagebox.showinfo("Extração concluída", msg)
+
+        self.after(0, finalizar)
+
+    # ------------------------------------------------------------------
+    # MOVER
+    # ------------------------------------------------------------------
+    def _abrir_mover(self):
+        pasta = self._pasta_downloads()
+
+        # Busca pastas extraídas (subpastas que contêm EP/GP/SP no nome)
+        pastas_extraidas = [
+            p for p in pasta.iterdir()
+            if p.is_dir() and re.match(r'Sims4_DLC_', p.name, re.IGNORECASE)
+        ]
+
+        if not pastas_extraidas:
+            messagebox.showwarning(
+                "Nada encontrado",
+                f"Nenhuma pasta extraída encontrada em:\n{pasta}\n\n"
+                "Execute primeiro o botão 📦 Extrair.")
             return
 
         pasta_sims = self._encontrar_pasta_sims()
@@ -501,49 +681,14 @@ class App(ctk.CTk):
                 "Certifique-se de que o jogo está instalado via Steam.")
             return
 
-        # Janela de progresso
-        win = ctk.CTkToplevel(self)
-        win.title("Organizando DLCs")
-        win.geometry("520x300")
-        win.resizable(False, False)
-        win.grab_set()
-        self._janela_prog = win
+        win = JanelaProgresso(self, "📂 Movendo DLCs",
+                              f"{len(pastas_extraidas)} pasta(s) encontrada(s)")
+        threading.Thread(target=self._executar_mover,
+                         args=(pastas_extraidas, pasta_sims, win),
+                         daemon=True).start()
 
-        ctk.CTkLabel(win, text="Extraindo e organizando DLCs",
-                     font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(24, 4))
-
-        self._lbl_arquivo_atual = ctk.CTkLabel(win, text="Iniciando…",
-                                               text_color="gray60",
-                                               font=ctk.CTkFont(size=11))
-        self._lbl_arquivo_atual.pack(pady=(0, 8))
-
-        self._prog_geral = ctk.CTkProgressBar(win, width=460)
-        self._prog_geral.set(0)
-        self._prog_geral.pack(pady=(0, 4))
-
-        self._lbl_prog_geral = ctk.CTkLabel(win, text=f"0 / {len(zips)} arquivos",
-                                            text_color="gray60",
-                                            font=ctk.CTkFont(size=10))
-        self._lbl_prog_geral.pack()
-
-        ctk.CTkLabel(win, text="Progresso do zip atual:",
-                     font=ctk.CTkFont(size=11)).pack(pady=(16, 4))
-
-        self._prog_zip = ctk.CTkProgressBar(win, width=460,
-                                            progress_color="#2FA572")
-        self._prog_zip.set(0)
-        self._prog_zip.pack(pady=(0, 4))
-
-        self._lbl_prog_zip = ctk.CTkLabel(win, text="",
-                                          text_color="gray60",
-                                          font=ctk.CTkFont(size=10))
-        self._lbl_prog_zip.pack()
-
-        threading.Thread(target=self._executar_organizacao,
-                         args=(zips, pasta_sims), daemon=True).start()
-
-    def _executar_organizacao(self, zips, pasta_sims):
-        total   = len(zips)
+    def _executar_mover(self, pastas_extraidas, pasta_sims, win):
+        total   = len(pastas_extraidas)
         erros   = []
         pulados = []
         padrao  = re.compile(r'^(EP|GP|SP|FP|KT)\d+', re.IGNORECASE)
@@ -551,47 +696,19 @@ class App(ctk.CTk):
         dst_raiz = pasta_sims
         dst_dlc  = pasta_sims / "__Installer" / "DLC"
 
-        for i, zip_path in enumerate(zips):
-            nome_zip = zip_path.stem
+        for i, pasta_extracao in enumerate(pastas_extraidas):
+            nome = pasta_extracao.name
 
-            self.after(0, lambda n=nome_zip, i=i, t=total: (
-                self._lbl_arquivo_atual.configure(text=f"Extraindo: {n}"),
-                self._prog_geral.set(i / t),
-                self._lbl_prog_geral.configure(text=f"{i} / {t} arquivos"),
-                self._prog_zip.set(0),
-                self._lbl_prog_zip.configure(text=""),
-            ))
+            self.after(0, lambda n=nome, i=i, t=total: win.atualizar(
+                f"Processando: {n}", f"{i} / {t}", i / t,
+                "Localizando pastas…", 0))
 
-            # Extração
-            try:
-                with zipfile.ZipFile(zip_path, "r") as zf:
-                    membros       = zf.infolist()
-                    total_membros = len(membros)
-                    for j, membro in enumerate(membros):
-                        zf.extract(membro, zip_path.parent)
-                        pct   = (j + 1) / total_membros
-                        texto = f"{j+1} / {total_membros} arquivos"
-                        self.after(0, lambda p=pct, tx=texto: (
-                            self._prog_zip.set(p),
-                            self._lbl_prog_zip.configure(text=tx),
-                        ))
-            except zipfile.BadZipFile:
-                erros.append(f"{nome_zip}: zip corrompido")
-                continue
-            except Exception as e:
-                erros.append(f"{nome_zip}: {e}")
-                continue
-
-            # Localiza pastas
-            pasta_extracao = zip_path.parent / nome_zip
-            if not pasta_extracao.exists():
-                erros.append(f"{nome_zip}: pasta extraída não encontrada")
-                continue
-
+            # Localiza pasta raiz (EP** direto na pasta extraída)
             pasta_raiz_dlc = next(
                 (p for p in pasta_extracao.iterdir()
                  if p.is_dir() and padrao.match(p.name)), None)
 
+            # Localiza pasta em __Installer/DLC
             installer_dlc = pasta_extracao / "__Installer" / "DLC"
             pasta_dlc_dir = None
             if installer_dlc.exists():
@@ -599,11 +716,13 @@ class App(ctk.CTk):
                     (p for p in installer_dlc.iterdir()
                      if p.is_dir() and padrao.match(p.name)), None)
 
-            # Move as pastas
-            for src, dst_base, label in [
+            movidos = 0
+            alvos   = [
                 (pasta_raiz_dlc, dst_raiz, "raiz do jogo"),
                 (pasta_dlc_dir,  dst_dlc,  "__Installer/DLC"),
-            ]:
+            ]
+
+            for src, dst_base, label in alvos:
                 if src is None:
                     continue
 
@@ -629,18 +748,17 @@ class App(ctk.CTk):
 
                 dst_base.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(src), str(dst))
+                movidos += 1
+                self._log(f"✔ Movido: {src.name} → {label}")
 
-            # Atualiza progresso geral
-            self.after(0, lambda i=i+1, t=total, n=nome_zip: (
-                self._prog_geral.set(i / t),
-                self._lbl_prog_geral.configure(text=f"{i} / {t} arquivos"),
-                self._lbl_arquivo_atual.configure(text=f"Concluído: {n}"),
-            ))
+            pct_atual = 1.0 if movidos > 0 else 0.0
+            self.after(0, lambda n=nome, i=i+1, t=total, p=pct_atual: win.atualizar(
+                f"Concluído: {n}", f"{i} / {t}", i / t,
+                "Concluído", p))
 
-        # Finaliza
         def finalizar():
-            self._janela_prog.destroy()
-            msg = "Organização concluída!"
+            win.destroy()
+            msg = "Movimento concluído!"
             if pulados:
                 msg += f"\n\nPulados ({len(pulados)}):\n" + "\n".join(f"• {p}" for p in pulados)
             if erros:
