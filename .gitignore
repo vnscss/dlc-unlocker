@@ -18,3 +18,5 @@ venv/
 
 # Sistema
 .DS_Store
+#teste .torrent
+torrents/
