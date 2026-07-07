@@ -1,5 +1,6 @@
 import os
 import re
+import requests
 import sys
 import json
 import time
@@ -28,30 +29,28 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # DADOS
 # ---------------------------------------------------------------------------
-PASTA_TORRENTS = BASE_DIR / "torrents"
-
 ARQUIVOS = [
-    {"nome": "EP01 — Get to Work",           "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP01_Get_to_Work.zip.torrent"},
-    {"nome": "EP02 — Get Together",          "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP02_Get_Together.zip.torrent"},
-    {"nome": "EP03 — City Living",           "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP03_City_Living.zip.torrent"},
-    {"nome": "EP04 — Cats and Dogs",         "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP04_Cats_and_Dogs.zip.torrent"},
-    {"nome": "EP05 — Seasons",               "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP05_Seasons.zip.torrent"},
-    {"nome": "EP06 — Get Famous",            "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP06_Get_Famous.zip.torrent"},
-    {"nome": "EP07 — Island Living",         "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP07_Island_Living.zip.torrent"},
-    {"nome": "EP08 — Discover University",   "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP08_Discover_University.zip.torrent"},
-    {"nome": "EP09 — Eco Lifestyle",         "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP09_Eco_Lifestyle.zip.torrent"},
-    {"nome": "EP10 — Snowy Escape",          "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP10_Snowy_Escape.zip.torrent"},
-    {"nome": "EP11 — Cottage Living",        "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP11_Cottage_Living.zip.torrent"},
-    {"nome": "EP12 — High School Years",     "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP12_High_School_Years.zip.torrent"},
-    {"nome": "EP13 — Growing Together",      "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP13_Growing_Together.zip.torrent"},
-    {"nome": "EP14 — Horse Ranch",           "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP14_Horse_Ranch.zip.torrent"},
-    {"nome": "EP15 — For Rent",              "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP15_For_Rent.zip.torrent"},
-    {"nome": "EP16 — Lovestruck",            "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP16_Lovestruck.zip.torrent"},
-    {"nome": "EP17 — Life and Death",        "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP17_Life_and_Death.zip.torrent"},
-    {"nome": "EP18 — Businesses and Hobbies","tag": "Expansion Pack", "torrent": "Sims4_DLC_EP18_Businesses_and_Hobbies.zip.torrent"},
-    {"nome": "EP19 — Enchanted by Nature",   "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP19_Enchanted_by_Nature_Expansion_Pack.zip.torrent"},
-    {"nome": "EP20 — Adventure Awaits",      "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP20_Adventure_Awaits_Expansion_Pack.zip.torrent"},
-    {"nome": "KITS AINDA NÃO DISPONÍVEIS",   "tag": "KIT",            "torrent": ""},
+    {"nome": "EP01 — Get to Work",           "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/1wemvcxcrsbe0ka/Sims4_DLC_EP01_Get_to_Work.zip/file"},
+    {"nome": "EP02 — Get Together",          "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/5wpm96gsa0rt07q/Sims4_DLC_EP02_Get_Together.zip/file"},
+    {"nome": "EP03 — City Living",           "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/bekfsfr8rz9stwt/Sims4_DLC_EP03_City_Living.zip/file"},
+    {"nome": "EP04 — Cats and Dogs",         "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/9oyf2yoryb50jjj/Sims4_DLC_EP04_Cats_and_Dogs.zip/file"},
+    {"nome": "EP05 — Seasons",               "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/pnemywfan6w5baj/Sims4_DLC_EP05_Seasons.zip/file"},
+    {"nome": "EP06 — Get Famous",            "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP07 — Island Living",         "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP08 — Discover University",   "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP09 — Eco Lifestyle",         "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP10 — Snowy Escape",          "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP11 — Cottage Living",        "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP12 — High School Years",     "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP13 — Growing Together",      "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP14 — Horse Ranch",           "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP15 — For Rent",              "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP16 — Lovestruck",            "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP17 — Life and Death",        "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP18 — Businesses and Hobbies","tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP19 — Enchanted by Nature",   "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP20 — Adventure Awaits",      "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "KITS AINDA NÃO DISPONÍVEIS",   "tag": "KIT",            "mediafire": ""},
 ]
 
 CORES_TAG = {
@@ -95,8 +94,60 @@ def escrever_log(mensagem):
         f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {mensagem}\n")
 
 
+def resolver_mediafire(url_pagina: str) -> tuple[str, str]:
+    from bs4 import BeautifulSoup
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": (
+            "text/html,application/xhtml+xml,application/xml;"
+            "q=0.9,image/avif,image/webp,*/*;q=0.8"
+        ),
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+    }
+
+    session = requests.Session()
+    session.headers.update(headers)
+
+    resp = session.get(url_pagina, timeout=20, allow_redirects=True)
+    resp.raise_for_status()
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    # Seletor primário: botão de download direto
+    btn = soup.select_one("a#downloadButton")
+    if btn and btn.get("href"):
+        link = btn["href"].strip()
+        nome = link.split("/")[-1].split("?")[0]
+        return link, nome
+
+    # Fallback: qualquer <a> cujo href aponte para um download do Mediafire CDN
+    for tag in soup.find_all("a", href=True):
+        href = tag["href"]
+        if "download" in href and "mediafire.com" in href:
+            nome = href.split("/")[-1].split("?")[0]
+            return href.strip(), nome
+
+    raise ValueError(
+        f"Link direto não encontrado na página do Mediafire.\n"
+        f"URL: {url_pagina}\n"
+        f"Verifique se o arquivo ainda está disponível."
+    )
+
+
 # ---------------------------------------------------------------------------
-# ESTADOS DO LIBTORRENT
+# ESTADOS DO LIBTORRENT - tentar via torrent no futuro, mas atualmente não usado
 # ---------------------------------------------------------------------------
 ESTADOS_PT = {
     lt.torrent_status.states.queued_for_checking:  "Na fila",
@@ -121,40 +172,89 @@ class GerenciadorTorrents:
         self.handles         = {}
         self.callbacks       = {}
         self._rodando        = True
+        self._cancelados     = set()
         self._thread = threading.Thread(target=self._loop_status, daemon=True)
         self._thread.start()
 
     def atualizar_pasta(self, nova_pasta):
         self.pasta_downloads = nova_pasta
 
-    def adicionar_torrent(self, item_id, caminho_torrent, on_update):
+    def adicionar_mediafire(self, item_id, url_mediafire, on_update):
+        """Resolve o link do Mediafire e inicia o download em thread separada."""
+        t = threading.Thread(
+            target=self._download_mediafire,
+            args=(item_id, url_mediafire, on_update),
+            daemon=True
+        )
+        t.start()
+
+    def _download_mediafire(self, item_id, url_mediafire, on_update):
+        """Baixa um arquivo do Mediafire com progresso."""
         os.makedirs(self.pasta_downloads, exist_ok=True)
-        info   = lt.torrent_info(str(caminho_torrent))
-        params = lt.add_torrent_params()
-        params.ti           = info
-        params.save_path    = self.pasta_downloads
-        params.storage_mode = lt.storage_mode_t.storage_mode_sparse
-        handle = self.session.add_torrent(params)
-        self.handles[item_id]   = handle
-        self.callbacks[item_id] = on_update
+        try:
+            on_update({"estado": "resolvendo", "progresso": 0, "velocidade": 0, "nome": ""})
+            url_direta, nome_arquivo = resolver_mediafire(url_mediafire)
+
+            destino = os.path.join(self.pasta_downloads, nome_arquivo)
+
+            session = requests.Session()
+            session.headers.update({
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                )
+            })
+
+            with session.get(url_direta, stream=True, timeout=30) as resp:
+                resp.raise_for_status()
+                total    = int(resp.headers.get("Content-Length", 0))
+                baixado  = 0
+                t_inicio = time.time()
+
+                with open(destino, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=131072):  # 128 KB
+                        if not chunk:
+                            continue
+
+                        # Verifica cancelamento
+                        if item_id not in self.handles and item_id in self._cancelados:
+                            self._cancelados.discard(item_id)
+                            on_update({"estado": "cancelado", "progresso": 0,
+                                       "velocidade": 0, "nome": nome_arquivo})
+                            return
+
+                        f.write(chunk)
+                        baixado += len(chunk)
+
+                        elapsed   = time.time() - t_inicio or 0.001
+                        vel_kb    = (baixado / elapsed) / 1024
+                        progresso = baixado / total if total else 0
+
+                        on_update({
+                            "estado":     "baixando",
+                            "progresso":  progresso,
+                            "velocidade": vel_kb,
+                            "nome":       nome_arquivo,
+                        })
+
+            on_update({"estado": "concluido", "progresso": 1.0,
+                       "velocidade": 0, "nome": nome_arquivo})
+
+        except Exception as e:
+            on_update({"estado": "erro", "progresso": 0,
+                       "velocidade": 0, "nome": str(e)})
 
     def _loop_status(self):
+        # Mantido para compatibilidade, não usado com Mediafire
         while self._rodando:
-            for item_id, handle in list(self.handles.items()):
-                if not handle.is_valid():
-                    continue
-                status   = handle.status()
-                callback = self.callbacks.get(item_id)
-                if callback:
-                    callback(status)
             time.sleep(1)
 
     def cancelar(self, item_id):
-        """Pausa o torrent e remove da sessão, mantendo os arquivos parciais."""
-        handle = self.handles.pop(item_id, None)
+        """Sinaliza cancelamento do download, mantendo arquivos parciais."""
+        self._cancelados.add(item_id)
+        self.handles.pop(item_id, None)
         self.callbacks.pop(item_id, None)
-        if handle and handle.is_valid():
-            self.session.remove_torrent(handle, 0)  # 0 = mantém arquivos
 
     def parar(self):
         self._rodando = False
@@ -292,41 +392,20 @@ class CartaoArquivo(ctk.CTkFrame):
                                             hover_color="#8B0000",
                                             command=self._cancelar)
         self.botao_cancelar.grid(row=1, column=2, padx=(14, 4), pady=(0, 14))
-        self.botao_cancelar.grid_remove()  # escondido até o download começar
+        self.botao_cancelar.grid_remove()
 
-        self._on_cancelar = None  # callback definido pelo App
+        self._on_cancelar = None
 
     def _clicar(self):
         self.botao.configure(state="disabled", text="Baixando...")
         self.status_label.configure(text="Iniciando...")
-        self.botao_cancelar.grid()  # mostra o botão cancelar
+        self.botao_cancelar.grid()
         self.on_baixar(self.item_id, self.item)
 
     def _cancelar(self):
         self.botao_cancelar.configure(state="disabled", text="Cancelando…")
         if self._on_cancelar:
             self._on_cancelar(self.item_id)
-
-    def atualizar_status(self, status):
-        progresso    = status.progress
-        estado_texto = ESTADOS_PT.get(status.state, str(status.state))
-        vel_kb       = status.download_rate / 1024
-        peers        = status.num_peers
-
-        self.progress_bar.set(progresso)
-
-        concluido = status.state in (
-            lt.torrent_status.states.finished,
-            lt.torrent_status.states.seeding,
-        )
-        if concluido:
-            self.status_label.configure(text="Concluído ✔", text_color="#2FA572")
-            self.botao.configure(text="Concluído", state="disabled")
-            self.botao_cancelar.grid_remove()
-        else:
-            self.status_label.configure(
-                text=f"{estado_texto} • {progresso*100:.1f}% • {vel_kb:.0f} KB/s • {peers} peers",
-                text_color="gray60")
 
 
 # ---------------------------------------------------------------------------
@@ -348,7 +427,6 @@ class JanelaProgresso(ctk.CTkToplevel):
                                     font=ctk.CTkFont(size=11))
         self.lbl_sub.pack(pady=(0, 16))
 
-        # Barra geral
         row_g = ctk.CTkFrame(self, fg_color="transparent")
         row_g.pack(fill="x", padx=30)
         self.lbl_geral = ctk.CTkLabel(row_g, text="Aguardando…",
@@ -363,7 +441,6 @@ class JanelaProgresso(ctk.CTkToplevel):
         self.prog_geral.set(0)
         self.prog_geral.pack(padx=30, pady=(4, 14))
 
-        # Barra atual
         self.lbl_atual = ctk.CTkLabel(self, text="",
                                       text_color="gray60",
                                       font=ctk.CTkFont(size=10), anchor="w")
@@ -411,16 +488,13 @@ class App(ctk.CTk):
         self._build_ui()
         self.protocol("WM_DELETE_WINDOW", self._fechar)
 
-    # ------------------------------------------------------------------
     def _build_ui(self):
-        # Cabeçalho
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill="x", padx=20, pady=(20, 10))
 
         ctk.CTkLabel(header, text="DLC Unlocker",
                      font=ctk.CTkFont(size=24, weight="bold")).pack(side="left")
 
-        # Botões do lado direito (ordem reversa por causa do pack side=right)
         ctk.CTkButton(header, text="📂 Mover",
                       width=90, fg_color="#1a5c2a", hover_color="#14451f",
                       command=self._abrir_mover).pack(side="right", padx=(4, 0))
@@ -438,7 +512,6 @@ class App(ctk.CTk):
                                            font=ctk.CTkFont(size=13))
         self.contador_label.pack(side="right", padx=(0, 10))
 
-        # Pasta de downloads
         pasta_frame = ctk.CTkFrame(self, fg_color="transparent")
         pasta_frame.pack(fill="x", padx=20, pady=(0, 10))
 
@@ -452,7 +525,6 @@ class App(ctk.CTk):
         ctk.CTkButton(pasta_frame, text="Alterar", width=80,
                       command=self._alterar_pasta).pack(side="left")
 
-        # Busca
         busca_frame = ctk.CTkFrame(self, fg_color="transparent")
         busca_frame.pack(fill="x", padx=20, pady=(0, 10))
 
@@ -461,7 +533,6 @@ class App(ctk.CTk):
         self.busca_entry.pack(fill="x")
         self.busca_entry.bind("<KeyRelease>", lambda e: self._filtrar())
 
-        # Lista
         self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
         self.scroll_frame.grid_columnconfigure(0, weight=1)
@@ -469,12 +540,10 @@ class App(ctk.CTk):
         self.cartoes = {}
         self._montar_lista()
 
-        # Log
         self.log_label = ctk.CTkLabel(self, text="", text_color="gray60",
                                       anchor="w", font=ctk.CTkFont(size=11))
         self.log_label.pack(fill="x", padx=20, pady=(0, 16))
 
-    # ------------------------------------------------------------------
     def _abrir_unlocker(self):
         for w in self.winfo_children():
             if isinstance(w, UnlockerWindow):
@@ -519,34 +588,67 @@ class App(ctk.CTk):
         self.contador_label.configure(text=f"{visiveis} itens")
 
     def _baixar_item(self, item_id, item):
-        nome_torrent = item.get("torrent", "")
-        if not nome_torrent:
-            self._log(f"⚠ Sem arquivo .torrent para: {item['nome']}")
+        url = item.get("mediafire", "")
+        if not url:
+            self._log(f"⚠ Link não disponível para: {item['nome']}")
             cartao = self.cartoes.get(item_id)
             if cartao:
                 cartao.botao.configure(state="normal", text="⬇ Baixar")
-                cartao.status_label.configure(text="Torrent não disponível")
+                cartao.status_label.configure(text="Link não disponível")
             return
-
-        caminho = PASTA_TORRENTS / nome_torrent
-        if not caminho.exists():
-            self._log(f"⚠ Arquivo não encontrado: {caminho}")
-            cartao = self.cartoes.get(item_id)
-            if cartao:
-                cartao.botao.configure(state="normal", text="⬇ Baixar")
-                cartao.status_label.configure(text="Arquivo .torrent ausente")
-            return
-
-        def callback_status(status):
-            cartao = self.cartoes.get(item_id)
-            if cartao:
-                self.after(0, lambda: cartao.atualizar_status(status))
 
         cartao = self.cartoes.get(item_id)
-        self.gerenciador.adicionar_torrent(item_id, caminho, callback_status)
+
+        def callback_status(info):
+            c = self.cartoes.get(item_id)
+            if not c:
+                return
+            estado = info.get("estado", "")
+            prog   = info.get("progresso", 0)
+            vel    = info.get("velocidade", 0)
+            nome   = info.get("nome", "")
+
+            vel_txt = f"{vel/1024:.1f} MB/s" if vel >= 1024 else f"{vel:.0f} KB/s"
+
+            if estado == "resolvendo":
+                self.after(0, lambda: c.status_label.configure(
+                    text="Resolvendo link…", text_color="gray60"))
+            elif estado == "baixando":
+                self.after(0, lambda p=prog, v=vel_txt: [
+                    c.progress_bar.set(p),
+                    c.status_label.configure(
+                        text=f"Baixando • {p*100:.1f}% • {v}",
+                        text_color="gray60"),
+                ])
+            elif estado == "concluido":
+                self.after(0, lambda: [
+                    c.progress_bar.set(1.0),
+                    c.status_label.configure(text="Concluído ✔", text_color="#2FA572"),
+                    c.botao.configure(text="Concluído", state="disabled"),
+                    c.botao_cancelar.grid_remove(),
+                ])
+                self._log(f"✔ Download concluído: {item['nome']}")
+            elif estado == "cancelado":
+                self.after(0, lambda: [
+                    c.status_label.configure(text="Cancelado", text_color="gray60"),
+                    c.progress_bar.set(0),
+                    c.botao.configure(state="normal", text="⬇ Baixar"),
+                    c.botao_cancelar.grid_remove(),
+                    c.botao_cancelar.configure(state="normal", text="✕ Cancelar"),
+                ])
+                self._log(f"Download cancelado: {item['nome']}")
+            elif estado == "erro":
+                self.after(0, lambda: [
+                    c.status_label.configure(text=f"✘ Erro: {nome}", text_color="#ef4444"),
+                    c.botao.configure(state="normal", text="⬇ Baixar"),
+                    c.botao_cancelar.grid_remove(),
+                ])
+                self._log(f"✘ Erro: {item['nome']}: {nome}")
+
+        self.gerenciador.handles[item_id] = True
+        self.gerenciador.adicionar_mediafire(item_id, url, callback_status)
         self._log(f"Download iniciado: {item['nome']}")
 
-        # Liga o botão cancelar ao handle do torrent
         if cartao:
             def cancelar(iid=item_id, c=cartao):
                 self.gerenciador.cancelar(iid)
@@ -574,9 +676,6 @@ class App(ctk.CTk):
         self.gerenciador.parar()
         self.destroy()
 
-    # ------------------------------------------------------------------
-    # HELPERS COMPARTILHADOS
-    # ------------------------------------------------------------------
     def _pasta_downloads(self):
         return Path(self.config_dados["pasta_downloads"])
 
@@ -605,9 +704,6 @@ class App(ctk.CTk):
                     pass
         return None
 
-    # ------------------------------------------------------------------
-    # EXTRAIR
-    # ------------------------------------------------------------------
     def _abrir_extrair(self):
         pasta = self._pasta_downloads()
         zips  = list(pasta.glob("*.zip"))
@@ -622,14 +718,13 @@ class App(ctk.CTk):
                          args=(zips, win), daemon=True).start()
 
     def _executar_extracao(self, zips, win):
-        total  = len(zips)
-        erros  = []
+        total = len(zips)
+        erros = []
 
         for i, zip_path in enumerate(zips):
-            nome_zip       = zip_path.stem          # Sims4_DLC_EP02_Get_Together
-            pasta_destino  = zip_path.parent / nome_zip  # extrai para subpasta com mesmo nome
+            nome_zip      = zip_path.stem
+            pasta_destino = zip_path.parent / nome_zip
 
-            # Atualiza barra geral
             self.after(0, lambda n=nome_zip, i=i, t=total: win.atualizar(
                 f"Extraindo: {n}", f"{i} / {t}", i / t,
                 "Preparando…", 0))
@@ -642,7 +737,6 @@ class App(ctk.CTk):
                     total_membros = len(membros)
 
                     for j, membro in enumerate(membros):
-                        # Extrai sempre dentro de pasta_destino
                         zf.extract(membro, pasta_destino)
                         pct     = (j + 1) / total_membros
                         detalhe = f"{j+1} / {total_membros} arquivos"
@@ -671,13 +765,9 @@ class App(ctk.CTk):
 
         self.after(0, finalizar)
 
-    # ------------------------------------------------------------------
-    # MOVER
-    # ------------------------------------------------------------------
     def _abrir_mover(self):
         pasta = self._pasta_downloads()
 
-        # Busca pastas extraídas (subpastas que contêm EP/GP/SP no nome)
         pastas_extraidas = [
             p for p in pasta.iterdir()
             if p.is_dir() and re.match(r'Sims4_DLC_', p.name, re.IGNORECASE)
@@ -720,12 +810,10 @@ class App(ctk.CTk):
                 f"Processando: {n}", f"{i} / {t}", i / t,
                 "Localizando pastas…", 0))
 
-            # Localiza pasta raiz (EP** direto na pasta extraída)
             pasta_raiz_dlc = next(
                 (p for p in pasta_extracao.iterdir()
                  if p.is_dir() and padrao.match(p.name)), None)
 
-            # Localiza pasta em __Installer/DLC
             installer_dlc = pasta_extracao / "__Installer" / "DLC"
             pasta_dlc_dir = None
             if installer_dlc.exists():

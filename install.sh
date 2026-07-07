@@ -152,6 +152,47 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Verificar BeautifulSoup4 (bs4) - usado pelo resolver_mediafire
+# ---------------------------------------------------------------------------
+info "Verificando módulo BeautifulSoup4 (bs4)..."
+if "$PYTHON_BIN" -c "import bs4" 2>/dev/null; then
+    ok "BeautifulSoup4 já está disponível para o Python."
+else
+    aviso "BeautifulSoup4 não encontrado. Tentando via pip..."
+    if pip_install beautifulsoup4; then
+        if "$PYTHON_BIN" -c "import bs4" 2>/dev/null; then
+            ok "BeautifulSoup4 instalado via pip."
+        else
+            erro "BeautifulSoup4 foi instalado via pip mas não importa corretamente."
+        fi
+    else
+        erro "Não foi possível instalar o BeautifulSoup4 automaticamente."
+        erro "Tente instalar manualmente: pip install beautifulsoup4"
+        exit 1
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# Verificar requests
+# ---------------------------------------------------------------------------
+info "Verificando módulo requests..."
+if "$PYTHON_BIN" -c "import requests" 2>/dev/null; then
+    ok "requests já está disponível para o Python."
+else
+    aviso "requests não encontrado. Tentando via pip..."
+    if pip_install requests; then
+        if "$PYTHON_BIN" -c "import requests" 2>/dev/null; then
+            ok "requests instalado via pip."
+        else
+            erro "requests foi instalado via pip mas não importa corretamente."
+        fi
+    else
+        erro "Não foi possível instalar o requests automaticamente."
+        erro "Tente instalar manualmente: pip install requests"
+        exit 1
+    fi
+fi
+# ---------------------------------------------------------------------------
 # Verificar Pillow 
 # ---------------------------------------------------------------------------
 info "Verificando módulo Pillow (PIL)..."
