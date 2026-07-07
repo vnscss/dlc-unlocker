@@ -28,28 +28,30 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # DADOS
 # ---------------------------------------------------------------------------
+PASTA_TORRENTS = BASE_DIR / "torrents"
+
 ARQUIVOS = [
-    {"nome": "EP01 — Get to Work",           "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:fbc3461adbc9f48b35d1f9003088515c81d7000e&dn=Sims4_DLC_EP01_Get_to_Work.zip&xl=1694934094&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP02 — Get Together",          "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:7b0ede6c6d8d4b2d1c48118790d80519be786a70&dn=Sims4_DLC_EP02_Get_Together.zip&xl=1717179184&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP03 — City Living",           "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:afb0cedd7ebfb28850b1a42ebe0dd0cdb5075857&dn=Sims4_DLC_EP03_City_Living.zip&xl=2635798353&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP04 — Cats and Dogs",         "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:3b41461c5345a34a0e2f9e2abd2b35aaf0f2ea80&dn=Sims4_DLC_EP04_Cats_and_Dogs.zip&xl=2013068744&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP05 — Seasons",               "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:f794b76b61368de6824383a367df7388e60e552a&dn=Sims4_DLC_EP05_Seasons.zip&xl=1412690473&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP06 — Get Famous",            "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:09d0e446313d238804d4b22780da9e2efa011846&dn=Sims4_DLC_EP06_Get_Famous.zip&xl=2807534837&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP07 — Island Living",         "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:449dbc717ad6f4fefca03b48a407c1df3534fd86&dn=Sims4_DLC_EP07_Island_Living.zip&xl=1446940021&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP08 — Discover University",   "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:ab06359c618a82fbf38d794daf021c2686d63fec&dn=Sims4_DLC_EP08_Discover_University.zip&xl=1618423432&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP09 — Eco Lifestyle",         "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:4b88b6e2c905181232257e7f50e0a6e4d4b11686&dn=Sims4_DLC_EP09_Eco_Lifestyle.zip&xl=1490785679&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP10 — Snowy Escape",          "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:8a492d38640cef3f450f667a7a6a7337cc9ffea5&dn=Sims4_DLC_EP10_Snowy_Escape.zip&xl=1605597860&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP11 — Cottage Living",        "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:6a425f0af1304fbec66e374d6854622eef3728a0&dn=Sims4_DLC_EP11_Cottage_Living.zip&xl=1681100841&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP12 — High School Years",     "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:dcb0fc534ae835df58f9f90b383feb97ee91302d&dn=Sims4_DLC_EP12_High_School_Years.zip&xl=1848263218&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP13 — Growing Together",      "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:0a156f75fb8692e9ea5b137d7038c342704df33c&dn=Sims4_DLC_EP13_Growing_Together.zip&xl=1397798130&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP14 — Horse Ranch",           "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:b2d54a84485119d36050fbc47d1497869b4a2d46&dn=Sims4_DLC_EP14_Horse_Ranch.zip&xl=1852411450&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP15 — For Rent",              "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:ede1f248ca30d952c645ff1b869f17a3fb4b1acc&dn=Sims4_DLC_EP15_For_Rent.zip&xl=1532830000&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP16 — Lovestruck",            "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:01e98b0b7d34284ef42d5e0028d8776f1ae9b6d4&dn=Sims4_DLC_EP16_Lovestruck.zip&xl=1725693097&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP17 — Life and Death",        "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:59cfd05a7edbdfb5439763220ce3a873a44621b4&dn=Sims4_DLC_EP17_Life_and_Death.zip&xl=2123601013&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP18 — Businesses and Hobbies","tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:5ecdbfef46508ae3930bfa72ccf9b8a6ad6ff374&dn=Sims4_DLC_EP18_Businesses_and_Hobbies.zip&xl=1517186961&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP19 — Enchanted by Nature",   "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:86f84ee365ad5b4796816d7dc470c4dfe2e148cf&dn=Sims4_DLC_EP19_Enchanted_by_Nature_Expansion_Pack.zip&xl=2089214644&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "EP20 — Adventure Awaits",      "tag": "Expansion Pack", "magnet": "magnet:?xt=urn:btih:53efbd10c6d9185c75da1fbcfc4bf174baf84688&dn=Sims4_DLC_EP20_Adventure_Awaits_Expansion_Pack.zip&xl=1567144516&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexplodie.org%3A6969%2Fannounce"},
-    {"nome": "KITS AINDA NÃO DISPONÍVEIS",   "tag": "KIT",            "magnet": "magnet:?xt=urn:btih:"},
+    {"nome": "EP01 — Get to Work",           "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP01_Get_to_Work.zip.torrent"},
+    {"nome": "EP02 — Get Together",          "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP02_Get_Together.zip.torrent"},
+    {"nome": "EP03 — City Living",           "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP03_City_Living.zip.torrent"},
+    {"nome": "EP04 — Cats and Dogs",         "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP04_Cats_and_Dogs.zip.torrent"},
+    {"nome": "EP05 — Seasons",               "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP05_Seasons.zip.torrent"},
+    {"nome": "EP06 — Get Famous",            "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP06_Get_Famous.zip.torrent"},
+    {"nome": "EP07 — Island Living",         "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP07_Island_Living.zip.torrent"},
+    {"nome": "EP08 — Discover University",   "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP08_Discover_University.zip.torrent"},
+    {"nome": "EP09 — Eco Lifestyle",         "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP09_Eco_Lifestyle.zip.torrent"},
+    {"nome": "EP10 — Snowy Escape",          "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP10_Snowy_Escape.zip.torrent"},
+    {"nome": "EP11 — Cottage Living",        "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP11_Cottage_Living.zip.torrent"},
+    {"nome": "EP12 — High School Years",     "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP12_High_School_Years.zip.torrent"},
+    {"nome": "EP13 — Growing Together",      "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP13_Growing_Together.zip.torrent"},
+    {"nome": "EP14 — Horse Ranch",           "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP14_Horse_Ranch.zip.torrent"},
+    {"nome": "EP15 — For Rent",              "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP15_For_Rent.zip.torrent"},
+    {"nome": "EP16 — Lovestruck",            "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP16_Lovestruck.zip.torrent"},
+    {"nome": "EP17 — Life and Death",        "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP17_Life_and_Death.zip.torrent"},
+    {"nome": "EP18 — Businesses and Hobbies","tag": "Expansion Pack", "torrent": "Sims4_DLC_EP18_Businesses_and_Hobbies.zip.torrent"},
+    {"nome": "EP19 — Enchanted by Nature",   "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP19_Enchanted_by_Nature_Expansion_Pack.zip.torrent"},
+    {"nome": "EP20 — Adventure Awaits",      "tag": "Expansion Pack", "torrent": "Sims4_DLC_EP20_Adventure_Awaits_Expansion_Pack.zip.torrent"},
+    {"nome": "KITS AINDA NÃO DISPONÍVEIS",   "tag": "KIT",            "torrent": ""},
 ]
 
 CORES_TAG = {
@@ -125,9 +127,11 @@ class GerenciadorTorrents:
     def atualizar_pasta(self, nova_pasta):
         self.pasta_downloads = nova_pasta
 
-    def adicionar_magnet(self, item_id, magnet_uri, on_update):
+    def adicionar_torrent(self, item_id, caminho_torrent, on_update):
         os.makedirs(self.pasta_downloads, exist_ok=True)
-        params = lt.parse_magnet_uri(magnet_uri)
+        info   = lt.torrent_info(str(caminho_torrent))
+        params = lt.add_torrent_params()
+        params.ti           = info
         params.save_path    = self.pasta_downloads
         params.storage_mode = lt.storage_mode_t.storage_mode_sparse
         handle = self.session.add_torrent(params)
@@ -491,7 +495,7 @@ class App(ctk.CTk):
         self.cartoes = {}
 
         for indice, item in enumerate(ARQUIVOS):
-            item_id = item.get("magnet", "") + str(indice)
+            item_id = item.get("torrent", "") + str(indice)
             cartao  = CartaoArquivo(self.scroll_frame, item_id, item,
                                     self._baixar_item)
             cartao.pack(fill="x", pady=6)
@@ -515,9 +519,22 @@ class App(ctk.CTk):
         self.contador_label.configure(text=f"{visiveis} itens")
 
     def _baixar_item(self, item_id, item):
-        magnet = item.get("magnet", "")
-        if not magnet or magnet.endswith("btih:"):
-            self._log(f"⚠ Magnet inválido para: {item['nome']}")
+        nome_torrent = item.get("torrent", "")
+        if not nome_torrent:
+            self._log(f"⚠ Sem arquivo .torrent para: {item['nome']}")
+            cartao = self.cartoes.get(item_id)
+            if cartao:
+                cartao.botao.configure(state="normal", text="⬇ Baixar")
+                cartao.status_label.configure(text="Torrent não disponível")
+            return
+
+        caminho = PASTA_TORRENTS / nome_torrent
+        if not caminho.exists():
+            self._log(f"⚠ Arquivo não encontrado: {caminho}")
+            cartao = self.cartoes.get(item_id)
+            if cartao:
+                cartao.botao.configure(state="normal", text="⬇ Baixar")
+                cartao.status_label.configure(text="Arquivo .torrent ausente")
             return
 
         def callback_status(status):
@@ -526,7 +543,7 @@ class App(ctk.CTk):
                 self.after(0, lambda: cartao.atualizar_status(status))
 
         cartao = self.cartoes.get(item_id)
-        self.gerenciador.adicionar_magnet(item_id, magnet, callback_status)
+        self.gerenciador.adicionar_torrent(item_id, caminho, callback_status)
         self._log(f"Download iniciado: {item['nome']}")
 
         # Liga o botão cancelar ao handle do torrent
