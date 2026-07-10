@@ -205,3 +205,4 @@ fi
 echo ""
 ok "Instalação concluída!"
 echo -e "${AZUL}Para rodar o programa:${RESET} python3 main.py"
+#commit 
