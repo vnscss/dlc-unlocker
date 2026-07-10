@@ -24,29 +24,7 @@ from ea_unlocker import EAUnlocker     # type: ignore[import]
 # ---------------------------------------------------------------------------
 # DADOS
 # ---------------------------------------------------------------------------
-ARQUIVOS = [
-    {"nome": "EP01 — Get to Work",            "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/1wemvcxcrsbe0ka/Sims4_DLC_EP01_Get_to_Work.zip/file"},
-    {"nome": "EP02 — Get Together",           "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/5wpm96gsa0rt07q/Sims4_DLC_EP02_Get_Together.zip/file"},
-    {"nome": "EP03 — City Living",            "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/bekfsfr8rz9stwt/Sims4_DLC_EP03_City_Living.zip/file"},
-    {"nome": "EP04 — Cats and Dogs",          "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/9oyf2yoryb50jjj/Sims4_DLC_EP04_Cats_and_Dogs.zip/file"},
-    {"nome": "EP05 — Seasons",                "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/pnemywfan6w5baj/Sims4_DLC_EP05_Seasons.zip/file"},
-    {"nome": "EP06 — Get Famous",             "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/8rw1ts6jivy82qs/Sims4_DLC_EP06_Get_Famous.zip/file"},
-    {"nome": "EP07 — Island Living",          "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/m51oflfoy2uei4q/Sims4_DLC_EP07_Island_Living.zip/file"},
-    {"nome": "EP08 — Discover University",    "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/b1l4189ebxd0qhl/Sims4_DLC_EP08_Discover_University.zip/file"},
-    {"nome": "EP09 — Eco Lifestyle",          "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/cpjsoyme769d8ab/Sims4_DLC_EP09_Eco_Lifestyle.zip/file"},
-    {"nome": "EP10 — Snowy Escape",           "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/ca1mo2j1968amm8/Sims4_DLC_EP10_Snowy_Escape.zip/file"},
-    {"nome": "EP11 — Cottage Living",         "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/2vlfxeuofyv1gu8/Sims4_DLC_EP11_Cottage_Living.zip/file"},
-    {"nome": "EP12 — High School Years",      "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/lysagth106pjg9q/Sims4_DLC_EP12_High_School_Years.zip/file"},
-    {"nome": "EP13 — Growing Together",       "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/3oro8wm28oujy2r/Sims4_DLC_EP13_Growing_Together.zip/file"},
-    {"nome": "EP14 — Horse Ranch",            "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/rws0p8xj1s5fqoe/Sims4_DLC_EP14_Horse_Ranch.zip/file"},
-    {"nome": "EP15 — For Rent",               "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/yaje0rt5zg7xt8a/Sims4_DLC_EP15_For_Rent.zip/file"},
-    {"nome": "EP16 — Lovestruck",             "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP17 — Life and Death",         "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP18 — Businesses and Hobbies", "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP19 — Enchanted by Nature",    "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP20 — Adventure Awaits",       "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "KITS — Em breve",               "tag": "KIT",            "mediafire": ""},
-]
+ARQUIVOS: list[dict] = []
 CORES_TAG      = {"Expansion Pack": "#98008E", "KIT": "#FF0000"}
 COR_TAG_PADRAO = "#5A5A5A"
 
@@ -81,10 +59,29 @@ def salvar_config(config):
 
 def escrever_log(mensagem):
     PASTA_LOGS.mkdir(parents=True, exist_ok=True)
-    with open(PASTA_LOGS / "dlc_manager.log", "a", encoding="utf-8") as f:
+    with open(PASTA_LOGS / "dlc_unlocker.log", "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {mensagem}\n")
 
+CATALOG_URL = "https://raw.githubusercontent.com/LinaPython/dlc-unlocker-data/refs/heads/main/catalog.json"
 
+
+def carregar_catalogo() -> list[dict]:
+    """Busca o catálogo remoto. Fallback para cache local se offline."""
+    cache = PASTA_CONFIG / "catalog_cache.json"
+    try:
+        resp = requests.get(CATALOG_URL, timeout=10)
+        resp.raise_for_status()
+        dados = resp.json()
+        PASTA_CONFIG.mkdir(parents=True, exist_ok=True)
+        with open(cache, "w", encoding="utf-8") as f:
+            json.dump(dados, f, ensure_ascii=False, indent=2)
+        return dados
+    except Exception:
+        if cache.exists():
+            with open(cache, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return []
+    
 def formatar_tamanho(bytes_: int) -> str:
     if bytes_ <= 0:
         return "? MB"
@@ -475,6 +472,7 @@ class App(ctk.CTk):
         self.geometry("680x620")
         self.minsize(520, 420)
         self.config_dados = carregar_config()
+        ARQUIVOS.extend(carregar_catalogo())
         self.gerenciador  = GerenciadorDownloads(
             pasta_downloads=self.config_dados["pasta_downloads"],
             log=self._log)
