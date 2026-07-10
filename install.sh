@@ -45,41 +45,32 @@ fi
 instalar_arch() {
     info "Instalando pacotes via pacman..."
     $SUDO pacman -Sy --needed --noconfirm \
-        python python-pip tk libtorrent-rasterbar python-pillow unzip p7zip unrar
+        python python-pip tk python-pillow unzip p7zip unrar
 }
 
 instalar_debian() {
     info "Instalando pacotes via apt..."
     $SUDO apt update
     $SUDO apt install -y \
-        python3 python3-pip python3-tk python3-libtorrent python3-pil unzip p7zip-full unrar
+        python3 python3-pip python3-tk python3-pil unzip p7zip-full unrar
 }
 
 instalar_fedora() {
     info "Instalando pacotes via dnf..."
     $SUDO dnf install -y \
         python3 python3-pip python3-tkinter python3-pillow unzip p7zip unrar || true
-
-    # vai tomar no cu as outras distros que não padronizam o nome do pacote libtorrent
-    $SUDO dnf install -y rb_libtorrent-python3 2>/dev/null \
-        || $SUDO dnf install -y python3-libtorrent-rasterbar 2>/dev/null \
-        || aviso "Não achei o pacote de libtorrent no dnf. Vamos tentar via pip mais abaixo."
 }
 
 instalar_opensuse() {
     info "Instalando pacotes via zypper..."
     $SUDO zypper --non-interactive install \
         python3 python3-pip python3-tk python3-Pillow unzip p7zip unrar || true
-
-    $SUDO zypper --non-interactive install python3-libtorrent 2>/dev/null \
-        || aviso "Não achei o pacote de libtorrent no zypper. Vamos tentar via pip mais abaixo."
 }
 
 instalar_alpine() {
     info "Instalando pacotes via apk..."
     $SUDO apk add --no-cache \
         python3 py3-pip python3-tkinter py3-pillow unzip p7zip unrar || true
-    aviso "Alpine geralmente não tem pacote de libtorrent pronto. Vamos tentar via pip mais abaixo."
 }
 
 case "$DISTRO_ID" in
@@ -107,7 +98,7 @@ case "$DISTRO_ID" in
             *suse*)    instalar_opensuse ;;
             *)
                 erro "Não sei como instalar pacotes nesta distro automaticamente."
-                erro "Instale manualmente: python3, pip, tkinter/tk, Pillow, e os bindings de libtorrent."
+                erro "Instale manualmente: python3, pip, tkinter/tk e Pillow."
                 exit 1
                 ;;
         esac
@@ -127,8 +118,6 @@ fi
 ok "Usando: $PYTHON_BIN ($($PYTHON_BIN --version))"
 
 pip_install() {
-    # Tenta instalar contornando o PEP 668 (externally-managed-environment),
-    #Se falhar, tenta com --user.
     "$PYTHON_BIN" -m pip install --upgrade "$1" --break-system-packages 2>/dev/null \
         || "$PYTHON_BIN" -m pip install --upgrade "$1" --user 2>/dev/null \
         || "$PYTHON_BIN" -m pip install --upgrade "$1"
@@ -152,7 +141,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Verificar BeautifulSoup4 (bs4) - usado pelo resolver_mediafire
+# Verificar BeautifulSoup4 (bs4)
 # ---------------------------------------------------------------------------
 info "Verificando módulo BeautifulSoup4 (bs4)..."
 if "$PYTHON_BIN" -c "import bs4" 2>/dev/null; then
@@ -192,8 +181,9 @@ else
         exit 1
     fi
 fi
+
 # ---------------------------------------------------------------------------
-# Verificar Pillow 
+# Verificar Pillow
 # ---------------------------------------------------------------------------
 info "Verificando módulo Pillow (PIL)..."
 if "$PYTHON_BIN" -c "import PIL" 2>/dev/null; then
@@ -209,29 +199,6 @@ else
     else
         erro "Não foi possível instalar o Pillow automaticamente."
         erro "Tente instalar manualmente o pacote 'Pillow' (pip) ou 'python-pillow' (sistema)."
-    fi
-fi
-
-# ---------------------------------------------------------------------------
-# Verificar se libtorrent já está disponível; senão, tentar via pip
-# ---------------------------------------------------------------------------
-info "Verificando módulo libtorrent..."
-if "$PYTHON_BIN" -c "import libtorrent" 2>/dev/null; then
-    ok "libtorrent já está disponível para o Python."
-else
-    aviso "libtorrent não encontrado via pacote de sistema. Tentando via pip (wheel pré-compilado)..."
-    if pip_install libtorrent; then
-        if "$PYTHON_BIN" -c "import libtorrent" 2>/dev/null; then
-            ok "libtorrent instalado via pip."
-        else
-            erro "libtorrent foi instalado via pip mas não importa corretamente."
-            erro "Pode ser incompatibilidade de versão do Python. Verifique manualmente."
-        fi
-    else
-        erro "Não foi possível instalar libtorrent automaticamente."
-        erro "No Arch, tente: sudo pacman -S libtorrent-rasterbar"
-        erro "Ou busque o pacote 'python-libtorrent' no AUR."
-        exit 1
     fi
 fi
 

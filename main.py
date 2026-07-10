@@ -1,12 +1,15 @@
 import os
 import re
-import requests
 import sys
 import json
 import time
 import threading
 import zipfile
+import requests
 import shutil
+from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from datetime import datetime
 from pathlib import Path
 from tkinter import messagebox, filedialog
@@ -15,52 +18,40 @@ BASE_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, str(BASE_DIR / "core"))
 
 import customtkinter as ctk
-from splash import SplashScreen
-from ea_unlocker import EAUnlocker
-
-try:
-    import libtorrent as lt
-except ImportError:
-    raise SystemExit(
-        "O módulo 'libtorrent' não foi encontrado.\n"
-        "Rode ./install.sh para instalar as dependências do sistema."
-    )
+from splash import SplashScreen        # type: ignore[import]
+from ea_unlocker import EAUnlocker     # type: ignore[import]
 
 # ---------------------------------------------------------------------------
 # DADOS
 # ---------------------------------------------------------------------------
 ARQUIVOS = [
-    {"nome": "EP01 — Get to Work",           "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/1wemvcxcrsbe0ka/Sims4_DLC_EP01_Get_to_Work.zip/file"},
-    {"nome": "EP02 — Get Together",          "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/5wpm96gsa0rt07q/Sims4_DLC_EP02_Get_Together.zip/file"},
-    {"nome": "EP03 — City Living",           "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/bekfsfr8rz9stwt/Sims4_DLC_EP03_City_Living.zip/file"},
-    {"nome": "EP04 — Cats and Dogs",         "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/9oyf2yoryb50jjj/Sims4_DLC_EP04_Cats_and_Dogs.zip/file"},
-    {"nome": "EP05 — Seasons",               "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/pnemywfan6w5baj/Sims4_DLC_EP05_Seasons.zip/file"},
-    {"nome": "EP06 — Get Famous",            "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP07 — Island Living",         "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP08 — Discover University",   "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP09 — Eco Lifestyle",         "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP10 — Snowy Escape",          "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP11 — Cottage Living",        "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP12 — High School Years",     "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP13 — Growing Together",      "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP14 — Horse Ranch",           "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP15 — For Rent",              "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP16 — Lovestruck",            "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP17 — Life and Death",        "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP18 — Businesses and Hobbies","tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP19 — Enchanted by Nature",   "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "EP20 — Adventure Awaits",      "tag": "Expansion Pack", "mediafire": ""},
-    {"nome": "KITS AINDA NÃO DISPONÍVEIS",   "tag": "KIT",            "mediafire": ""},
+    {"nome": "EP01 — Get to Work",            "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/1wemvcxcrsbe0ka/Sims4_DLC_EP01_Get_to_Work.zip/file"},
+    {"nome": "EP02 — Get Together",           "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/5wpm96gsa0rt07q/Sims4_DLC_EP02_Get_Together.zip/file"},
+    {"nome": "EP03 — City Living",            "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/bekfsfr8rz9stwt/Sims4_DLC_EP03_City_Living.zip/file"},
+    {"nome": "EP04 — Cats and Dogs",          "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/9oyf2yoryb50jjj/Sims4_DLC_EP04_Cats_and_Dogs.zip/file"},
+    {"nome": "EP05 — Seasons",                "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/pnemywfan6w5baj/Sims4_DLC_EP05_Seasons.zip/file"},
+    {"nome": "EP06 — Get Famous",             "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/8rw1ts6jivy82qs/Sims4_DLC_EP06_Get_Famous.zip/file"},
+    {"nome": "EP07 — Island Living",          "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/m51oflfoy2uei4q/Sims4_DLC_EP07_Island_Living.zip/file"},
+    {"nome": "EP08 — Discover University",    "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/b1l4189ebxd0qhl/Sims4_DLC_EP08_Discover_University.zip/file"},
+    {"nome": "EP09 — Eco Lifestyle",          "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/cpjsoyme769d8ab/Sims4_DLC_EP09_Eco_Lifestyle.zip/file"},
+    {"nome": "EP10 — Snowy Escape",           "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/ca1mo2j1968amm8/Sims4_DLC_EP10_Snowy_Escape.zip/file"},
+    {"nome": "EP11 — Cottage Living",         "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/2vlfxeuofyv1gu8/Sims4_DLC_EP11_Cottage_Living.zip/file"},
+    {"nome": "EP12 — High School Years",      "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/lysagth106pjg9q/Sims4_DLC_EP12_High_School_Years.zip/file"},
+    {"nome": "EP13 — Growing Together",       "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/3oro8wm28oujy2r/Sims4_DLC_EP13_Growing_Together.zip/file"},
+    {"nome": "EP14 — Horse Ranch",            "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/rws0p8xj1s5fqoe/Sims4_DLC_EP14_Horse_Ranch.zip/file"},
+    {"nome": "EP15 — For Rent",               "tag": "Expansion Pack", "mediafire": "https://www.mediafire.com/file/yaje0rt5zg7xt8a/Sims4_DLC_EP15_For_Rent.zip/file"},
+    {"nome": "EP16 — Lovestruck",             "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP17 — Life and Death",         "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP18 — Businesses and Hobbies", "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP19 — Enchanted by Nature",    "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "EP20 — Adventure Awaits",       "tag": "Expansion Pack", "mediafire": ""},
+    {"nome": "KITS — Em breve",               "tag": "KIT",            "mediafire": ""},
 ]
-
-CORES_TAG = {
-    "Expansion Pack": "#98008E",
-    "KIT":            "#FF0000",
-}
+CORES_TAG      = {"Expansion Pack": "#98008E", "KIT": "#FF0000"}
 COR_TAG_PADRAO = "#5A5A5A"
 
 # ---------------------------------------------------------------------------
-# CONFIGURAÇÃO PERSISTENTE
+# CONFIGURAÇÃO
 # ---------------------------------------------------------------------------
 PASTA_CONFIG   = BASE_DIR / "configs"
 ARQUIVO_CONFIG = PASTA_CONFIG / "config.json"
@@ -94,170 +85,186 @@ def escrever_log(mensagem):
         f.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {mensagem}\n")
 
 
-def resolver_mediafire(url_pagina: str) -> tuple[str, str]:
-    from bs4 import BeautifulSoup
+def formatar_tamanho(bytes_: int) -> str:
+    if bytes_ <= 0:
+        return "? MB"
+    valor = float(bytes_)
+    for unidade in ("B", "KB", "MB", "GB"):
+        if valor < 1024:
+            return f"{valor:.1f} {unidade}"
+        valor /= 1024
+    return f"{valor:.1f} TB"
 
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Safari/537.36"
-        ),
-        "Accept": (
-            "text/html,application/xhtml+xml,application/xml;"
-            "q=0.9,image/avif,image/webp,*/*;q=0.8"
-        ),
-        "Accept-Language": "en-US,en;q=0.5",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-    }
 
-    session = requests.Session()
-    session.headers.update(headers)
+# ---------------------------------------------------------------------------
+# HTTP — sessão compartilhada com pool e retries
+# ---------------------------------------------------------------------------
+_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
 
-    resp = session.get(url_pagina, timeout=20, allow_redirects=True)
+
+def _nova_sessao(pool: int = 8) -> requests.Session:
+    s = requests.Session()
+    r = Retry(total=3, backoff_factor=0.5,
+               status_forcelist=[429, 500, 502, 503, 504],
+               allowed_methods=["GET", "HEAD"])
+    a = HTTPAdapter(pool_connections=pool, pool_maxsize=pool, max_retries=r)
+    s.mount("https://", a)
+    s.mount("http://",  a)
+    return s
+
+
+_SESSAO_PAGE = _nova_sessao(pool=4)
+_SESSAO_PAGE.headers.update({
+    "User-Agent": _UA,
+    "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+})
+
+
+# ---------------------------------------------------------------------------
+# MEDIAFIRE — resolve link direto e tamanho
+# ---------------------------------------------------------------------------
+def resolver_mediafire(url_pagina: str) -> tuple[str, str, int]:
+    """
+    Retorna (url_direta, nome_arquivo, tamanho_bytes).
+    tamanho_bytes pode ser 0 se não exposto na página.
+    """
+    resp = _SESSAO_PAGE.get(url_pagina, timeout=20, allow_redirects=True)
     resp.raise_for_status()
 
     soup = BeautifulSoup(resp.text, "html.parser")
 
-    # Seletor primário: botão de download direto
-    btn = soup.select_one("a#downloadButton")
-    if btn and btn.get("href"):
-        link = btn["href"].strip()
-        nome = link.split("/")[-1].split("?")[0]
-        return link, nome
+    # Botão principal de download
+    btn  = soup.select_one("a#downloadButton")
+    link = btn["href"].strip() if btn and btn.get("href") else None
 
-    # Fallback: qualquer <a> cujo href aponte para um download do Mediafire CDN
-    for tag in soup.find_all("a", href=True):
-        href = tag["href"]
-        if "download" in href and "mediafire.com" in href:
-            nome = href.split("/")[-1].split("?")[0]
-            return href.strip(), nome
+    # Fallback: qualquer link de download do Mediafire
+    if not link:
+        for tag in soup.find_all("a", href=True):
+            href = tag["href"]
+            if "download" in href and "mediafire.com" in href:
+                link = href.strip()
+                break
 
-    raise ValueError(
-        f"Link direto não encontrado na página do Mediafire.\n"
-        f"URL: {url_pagina}\n"
-        f"Verifique se o arquivo ainda está disponível."
-    )
+    if not link:
+        raise ValueError(f"Link não encontrado na página: {url_pagina}")
 
+    nome = link.split("/")[-1].split("?")[0]
 
-# ---------------------------------------------------------------------------
-# ESTADOS DO LIBTORRENT - tentar via torrent no futuro, mas atualmente não usado
-# ---------------------------------------------------------------------------
-ESTADOS_PT = {
-    lt.torrent_status.states.queued_for_checking:  "Na fila",
-    lt.torrent_status.states.checking_files:       "Verificando arquivos",
-    lt.torrent_status.states.downloading_metadata: "Buscando metadados",
-    lt.torrent_status.states.downloading:          "Baixando",
-    lt.torrent_status.states.finished:             "Concluído",
-    lt.torrent_status.states.seeding:              "Concluído (semeando)",
-    lt.torrent_status.states.allocating:           "Alocando espaço",
-    lt.torrent_status.states.checking_resume_data: "Verificando dados",
-}
+    # Tenta extrair tamanho do texto do botão
+    tamanho = 0
+    if btn:
+        m = re.search(r'\(([\d.,]+)\s*(KB|MB|GB)\)', btn.get_text(), re.IGNORECASE)
+        if m:
+            val  = float(m.group(1).replace(",", "."))
+            mult = {"KB": 1024, "MB": 1024**2, "GB": 1024**3}[m.group(2).upper()]
+            tamanho = int(val * mult)
+
+    return link, nome, tamanho
 
 
 # ---------------------------------------------------------------------------
-# GERENCIADOR DE TORRENTS
+# GERENCIADOR DE DOWNLOADS
 # ---------------------------------------------------------------------------
-class GerenciadorTorrents:
+class GerenciadorDownloads:
+    CHUNK = 4 * 1024 * 1024  # 4 MB — chunk grande reduz overhead do GIL
+
     def __init__(self, pasta_downloads, log=print):
-        self.session         = lt.session({"listen_interfaces": "0.0.0.0:6881"})
         self.pasta_downloads = pasta_downloads
         self.log             = log
         self.handles         = {}
-        self.callbacks       = {}
-        self._rodando        = True
         self._cancelados     = set()
-        self._thread = threading.Thread(target=self._loop_status, daemon=True)
-        self._thread.start()
+        self._sessao_dl      = _nova_sessao(pool=10)
+        self._sessao_dl.headers.update({"User-Agent": _UA})
 
-    def atualizar_pasta(self, nova_pasta):
-        self.pasta_downloads = nova_pasta
+    def atualizar_pasta(self, nova):
+        self.pasta_downloads = nova
 
-    def adicionar_mediafire(self, item_id, url_mediafire, on_update):
-        """Resolve o link do Mediafire e inicia o download em thread separada."""
-        t = threading.Thread(
-            target=self._download_mediafire,
-            args=(item_id, url_mediafire, on_update),
-            daemon=True
-        )
-        t.start()
+    def iniciar(self, item_id, url, on_update):
+        self.handles[item_id] = True
+        threading.Thread(target=self._baixar,
+                         args=(item_id, url, on_update),
+                         daemon=True).start()
 
-    def _download_mediafire(self, item_id, url_mediafire, on_update):
-        """Baixa um arquivo do Mediafire com progresso."""
+    def _baixar(self, item_id, url, on_update):
         os.makedirs(self.pasta_downloads, exist_ok=True)
         try:
-            on_update({"estado": "resolvendo", "progresso": 0, "velocidade": 0, "nome": ""})
-            url_direta, nome_arquivo = resolver_mediafire(url_mediafire)
+            on_update({"estado": "resolvendo", "progresso": 0,
+                       "velocidade": 0, "nome": "", "tamanho": 0})
 
-            destino = os.path.join(self.pasta_downloads, nome_arquivo)
+            url_dl, nome, tam_pag = resolver_mediafire(url)
+            destino = os.path.join(self.pasta_downloads, nome)
 
-            session = requests.Session()
-            session.headers.update({
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"
-                )
-            })
-
-            with session.get(url_direta, stream=True, timeout=30) as resp:
+            with self._sessao_dl.get(url_dl, stream=True, timeout=30) as resp:
                 resp.raise_for_status()
-                total    = int(resp.headers.get("Content-Length", 0))
-                baixado  = 0
-                t_inicio = time.time()
+                total   = int(resp.headers.get("Content-Length", 0)) or tam_pag
+                baixado = 0
+                t0      = time.time()
+                t_ui    = t0
+
+                on_update({"estado": "iniciando", "progresso": 0,
+                           "velocidade": 0, "nome": nome, "tamanho": total})
 
                 with open(destino, "wb") as f:
-                    for chunk in resp.iter_content(chunk_size=131072):  # 128 KB
+                    for chunk in resp.iter_content(chunk_size=self.CHUNK):
                         if not chunk:
                             continue
-
-                        # Verifica cancelamento
-                        if item_id not in self.handles and item_id in self._cancelados:
+                        if item_id in self._cancelados:
                             self._cancelados.discard(item_id)
+                            self.handles.pop(item_id, None)
                             on_update({"estado": "cancelado", "progresso": 0,
-                                       "velocidade": 0, "nome": nome_arquivo})
+                                       "velocidade": 0, "nome": nome,
+                                       "tamanho": total, "baixado": baixado})
                             return
-
                         f.write(chunk)
                         baixado += len(chunk)
+                        agora = time.time()
+                        if agora - t_ui >= 0.25:
+                            elapsed = max(agora - t0, 0.001)
+                            on_update({
+                                "estado":     "baixando",
+                                "progresso":  baixado / total if total else 0,
+                                "velocidade": (baixado / elapsed) / 1024,
+                                "nome":       nome,
+                                "tamanho":    total,
+                                "baixado":    baixado,
+                            })
+                            t_ui = agora
 
-                        elapsed   = time.time() - t_inicio or 0.001
-                        vel_kb    = (baixado / elapsed) / 1024
-                        progresso = baixado / total if total else 0
-
-                        on_update({
-                            "estado":     "baixando",
-                            "progresso":  progresso,
-                            "velocidade": vel_kb,
-                            "nome":       nome_arquivo,
-                        })
-
+            self.handles.pop(item_id, None)
             on_update({"estado": "concluido", "progresso": 1.0,
-                       "velocidade": 0, "nome": nome_arquivo})
+                       "velocidade": 0, "nome": nome,
+                       "tamanho": total, "baixado": total})
 
+        except requests.HTTPError as e:
+            self.handles.pop(item_id, None)
+            on_update({"estado": "erro", "progresso": 0, "velocidade": 0,
+                       "nome": f"HTTP {e.response.status_code}", "tamanho": 0})
+        except requests.ConnectionError:
+            self.handles.pop(item_id, None)
+            on_update({"estado": "erro", "progresso": 0, "velocidade": 0,
+                       "nome": "Sem conexão com o Mediafire.", "tamanho": 0})
+        except requests.Timeout:
+            self.handles.pop(item_id, None)
+            on_update({"estado": "erro", "progresso": 0, "velocidade": 0,
+                       "nome": "Timeout (30s).", "tamanho": 0})
         except Exception as e:
-            on_update({"estado": "erro", "progresso": 0,
-                       "velocidade": 0, "nome": str(e)})
-
-    def _loop_status(self):
-        # Mantido para compatibilidade, não usado com Mediafire
-        while self._rodando:
-            time.sleep(1)
+            self.handles.pop(item_id, None)
+            on_update({"estado": "erro", "progresso": 0, "velocidade": 0,
+                       "nome": str(e), "tamanho": 0})
 
     def cancelar(self, item_id):
-        """Sinaliza cancelamento do download, mantendo arquivos parciais."""
         self._cancelados.add(item_id)
-        self.handles.pop(item_id, None)
-        self.callbacks.pop(item_id, None)
 
     def parar(self):
-        self._rodando = False
+        self._cancelados.update(self.handles.keys())
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +276,6 @@ class UnlockerWindow(ctk.CTkToplevel):
         self.title("EA Unlocker Manager")
         self.geometry("500x400")
         self.attributes("-topmost", True)
-
         self.unlocker = EAUnlocker()
 
         self.status_label = ctk.CTkLabel(self, text="Inicializando...",
@@ -280,69 +286,62 @@ class UnlockerWindow(ctk.CTkToplevel):
         self.prefix_menu = ctk.CTkOptionMenu(self, variable=self.prefix_var, values=[])
         self.prefix_menu.pack(pady=10)
 
-        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.pack(pady=10)
-
-        ctk.CTkButton(btn_frame, text="Atualizar",
-                      command=self._install_unlocker).pack(side="left", padx=5)
-        ctk.CTkButton(btn_frame, text="Desinstalar",
-                      command=self._uninstall_unlocker,
-                      fg_color="#8B0000").pack(side="left", padx=5)
-        ctk.CTkButton(btn_frame, text="Abrir Configs",
+        bf = ctk.CTkFrame(self, fg_color="transparent")
+        bf.pack(pady=10)
+        ctk.CTkButton(bf, text="Instalar / Atualizar",
+                      command=self._install).pack(side="left", padx=5)
+        ctk.CTkButton(bf, text="Desinstalar", fg_color="#8B0000",
+                      command=self._uninstall).pack(side="left", padx=5)
+        ctk.CTkButton(bf, text="Abrir Configs",
                       command=self._open_configs).pack(side="left", padx=5)
 
-        self.after(100, self._scan_prefixes)
+        self.after(100, self._scan)
 
-    def _scan_prefixes(self):
+    def _scan(self):
         try:
             self.unlocker.discover_prefixes()
             names = self.unlocker.all_prefix_names
             if not names:
                 self.prefix_var.set("Nenhum prefixo encontrado")
-                self.status_label.configure(text="Erro: Nenhum prefixo encontrado.")
+                self.status_label.configure(text="Nenhum prefixo encontrado.")
                 return
             self.prefix_menu.configure(values=names)
             self.prefix_var.set(names[0])
             self.status_label.configure(text=f"{len(names)} prefixo(s) encontrado(s).")
         except Exception as e:
-            self.status_label.configure(text=f"Erro ao escanear: {e}")
+            self.status_label.configure(text=f"Erro: {e}")
 
-    def _select_prefix(self):
+    def _select(self):
         names = self.prefix_menu.cget("values")
         if names:
             try:
-                idx = list(names).index(self.prefix_var.get())
-                self.unlocker.select_prefix(idx)
-            except (ValueError, Exception) as e:
-                self.status_label.configure(text=f"Erro na seleção: {e}")
+                self.unlocker.select_prefix(list(names).index(self.prefix_var.get()))
+            except Exception as e:
+                self.status_label.configure(text=f"Erro: {e}")
 
-    def _install_unlocker(self):
-        self._select_prefix()
-        threading.Thread(target=self._do_install, daemon=True).start()
+    def _install(self):
+        self._select()
+        threading.Thread(target=self._do, args=("install",), daemon=True).start()
 
-    def _do_install(self):
+    def _uninstall(self):
+        self._select()
+        threading.Thread(target=self._do, args=("uninstall",), daemon=True).start()
+
+    def _do(self, acao):
         try:
-            self.unlocker.install_unlocker()
-            self.after(0, lambda: self.status_label.configure(
-                text="Instalação concluída com sucesso!"))
-        except Exception as e:
-            self.after(0, lambda: self.status_label.configure(text=f"Falha: {e}"))
-
-    def _uninstall_unlocker(self):
-        self._select_prefix()
-        threading.Thread(target=self._do_uninstall, daemon=True).start()
-
-    def _do_uninstall(self):
-        try:
-            self.unlocker.uninstall_unlocker()
-            self.after(0, lambda: self.status_label.configure(
-                text="Desinstalação concluída."))
+            if acao == "install":
+                self.unlocker.install_unlocker()
+                msg = "Instalação concluída!"
+            else:
+                self.unlocker.uninstall_unlocker()
+                msg = "Desinstalação concluída."
+            self.after(0, lambda: self.status_label.configure(text=msg))
         except Exception as e:
             self.after(0, lambda: self.status_label.configure(text=f"Falha: {e}"))
 
     def _open_configs(self):
         try:
-            self._select_prefix()
+            self._select()
             self.unlocker.open_configs_folder()
         except Exception as e:
             self.status_label.configure(text=f"Erro: {e}")
@@ -355,61 +354,65 @@ class CartaoArquivo(ctk.CTkFrame):
     def __init__(self, master, item_id, item, on_baixar, **kwargs):
         super().__init__(master, corner_radius=12,
                          fg_color=("#EAEAEA", "#242424"), **kwargs)
-        self.item_id   = item_id
-        self.item      = item
-        self.on_baixar = on_baixar
+        self.item_id      = item_id
+        self.item         = item
+        self.on_baixar    = on_baixar
+        self._on_cancelar = None
 
         self.grid_columnconfigure(1, weight=1)
 
-        cor   = CORES_TAG.get(item["tag"], COR_TAG_PADRAO)
-        badge = ctk.CTkLabel(self, text=item["tag"],
-                             fg_color=cor, text_color="white",
-                             corner_radius=8, width=60, height=26,
-                             font=ctk.CTkFont(size=12, weight="bold"))
-        badge.grid(row=0, column=0, padx=(14, 10), pady=14, sticky="n")
+        cor = CORES_TAG.get(item["tag"], COR_TAG_PADRAO)
+        ctk.CTkLabel(self, text=item["tag"],
+                     fg_color=cor, text_color="white",
+                     corner_radius=8, width=60, height=26,
+                     font=ctk.CTkFont(size=12, weight="bold")
+                     ).grid(row=0, column=0, padx=(14, 10), pady=14, sticky="n")
 
-        ctk.CTkLabel(self, text=item["nome"], anchor="w",
-                     font=ctk.CTkFont(size=15, weight="bold")
-                     ).grid(row=0, column=1, sticky="w", pady=(14, 0))
+        nome_row = ctk.CTkFrame(self, fg_color="transparent")
+        nome_row.grid(row=0, column=1, sticky="w", pady=(14, 0))
+        ctk.CTkLabel(nome_row, text=item["nome"], anchor="w",
+                     font=ctk.CTkFont(size=15, weight="bold")).pack(side="left")
+        self.lbl_tam = ctk.CTkLabel(nome_row, text="", text_color="gray60",
+                                    font=ctk.CTkFont(size=11))
+        self.lbl_tam.pack(side="left", padx=(8, 0))
 
-        self.status_label = ctk.CTkLabel(self, text="Aguardando", anchor="w",
-                                         text_color="gray60",
-                                         font=ctk.CTkFont(size=11))
-        self.status_label.grid(row=1, column=1, sticky="w", pady=(2, 6))
+        self.lbl_status = ctk.CTkLabel(self, text="Aguardando", anchor="w",
+                                       text_color="gray60",
+                                       font=ctk.CTkFont(size=11))
+        self.lbl_status.grid(row=1, column=1, sticky="w", pady=(2, 6))
 
-        self.progress_bar = ctk.CTkProgressBar(self)
-        self.progress_bar.set(0)
-        self.progress_bar.grid(row=2, column=1, sticky="ew",
-                               pady=(0, 14), padx=(0, 10))
+        self.bar = ctk.CTkProgressBar(self)
+        self.bar.set(0)
+        self.bar.grid(row=2, column=1, sticky="ew", pady=(0, 14), padx=(0, 10))
 
-        self.botao = ctk.CTkButton(self, text="⬇ Baixar",
-                                   width=100, command=self._clicar)
-        self.botao.grid(row=0, column=2, padx=(14, 4), pady=(14, 4))
+        col_btn = ctk.CTkFrame(self, fg_color="transparent")
+        col_btn.grid(row=0, column=2, rowspan=3, padx=(0, 14), pady=14)
 
-        self.botao_cancelar = ctk.CTkButton(self, text="✕ Cancelar",
-                                            width=100,
-                                            fg_color="#5c1a1a",
-                                            hover_color="#8B0000",
-                                            command=self._cancelar)
-        self.botao_cancelar.grid(row=1, column=2, padx=(14, 4), pady=(0, 14))
-        self.botao_cancelar.grid_remove()
+        self.btn_baixar = ctk.CTkButton(col_btn, text="⬇ Baixar",
+                                        width=100, command=self._clicar)
+        self.btn_baixar.pack()
 
-        self._on_cancelar = None
+        self.btn_cancel = ctk.CTkButton(col_btn, text="✕ Cancelar",
+                                        width=100, fg_color="#5c1a1a",
+                                        hover_color="#8B0000",
+                                        command=self._cancelar)
+        self.btn_cancel.pack(pady=(6, 0))
+        self.btn_cancel.pack_forget()
 
     def _clicar(self):
-        self.botao.configure(state="disabled", text="Baixando...")
-        self.status_label.configure(text="Iniciando...")
-        self.botao_cancelar.grid()
+        self.btn_baixar.configure(state="disabled", text="Baixando...")
+        self.lbl_status.configure(text="Iniciando...")
+        self.btn_cancel.pack(pady=(6, 0))
         self.on_baixar(self.item_id, self.item)
 
     def _cancelar(self):
-        self.botao_cancelar.configure(state="disabled", text="Cancelando…")
+        self.btn_cancel.configure(state="disabled", text="Cancelando…")
         if self._on_cancelar:
             self._on_cancelar(self.item_id)
 
 
 # ---------------------------------------------------------------------------
-# JANELA DE PROGRESSO BASE (reutilizada por Extrair e Mover)
+# JANELA DE PROGRESSO
 # ---------------------------------------------------------------------------
 class JanelaProgresso(ctk.CTkToplevel):
     def __init__(self, master, titulo, subtitulo):
@@ -421,48 +424,41 @@ class JanelaProgresso(ctk.CTkToplevel):
 
         ctk.CTkLabel(self, text=titulo,
                      font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(24, 2))
+        ctk.CTkLabel(self, text=subtitulo, text_color="gray60",
+                     font=ctk.CTkFont(size=11)).pack(pady=(0, 16))
 
-        self.lbl_sub = ctk.CTkLabel(self, text=subtitulo,
-                                    text_color="gray60",
-                                    font=ctk.CTkFont(size=11))
-        self.lbl_sub.pack(pady=(0, 16))
+        rg = ctk.CTkFrame(self, fg_color="transparent")
+        rg.pack(fill="x", padx=30)
+        self.lbl_g = ctk.CTkLabel(rg, text="Aguardando…", text_color="gray60",
+                                   font=ctk.CTkFont(size=10), anchor="w")
+        self.lbl_g.pack(side="left")
+        self.lbl_c = ctk.CTkLabel(rg, text="0 / 0", text_color="gray60",
+                                   font=ctk.CTkFont(size=10), anchor="e")
+        self.lbl_c.pack(side="right")
 
-        row_g = ctk.CTkFrame(self, fg_color="transparent")
-        row_g.pack(fill="x", padx=30)
-        self.lbl_geral = ctk.CTkLabel(row_g, text="Aguardando…",
-                                      text_color="gray60",
-                                      font=ctk.CTkFont(size=10), anchor="w")
-        self.lbl_geral.pack(side="left")
-        self.lbl_conta = ctk.CTkLabel(row_g, text="0 / 0",
-                                      text_color="gray60",
-                                      font=ctk.CTkFont(size=10), anchor="e")
-        self.lbl_conta.pack(side="right")
-        self.prog_geral = ctk.CTkProgressBar(self, width=480)
-        self.prog_geral.set(0)
-        self.prog_geral.pack(padx=30, pady=(4, 14))
+        self.bar_g = ctk.CTkProgressBar(self, width=480)
+        self.bar_g.set(0)
+        self.bar_g.pack(padx=30, pady=(4, 14))
 
-        self.lbl_atual = ctk.CTkLabel(self, text="",
-                                      text_color="gray60",
-                                      font=ctk.CTkFont(size=10), anchor="w")
-        self.lbl_atual.pack(fill="x", padx=30)
-        self.prog_atual = ctk.CTkProgressBar(self, width=480,
-                                             progress_color="#2FA572")
-        self.prog_atual.set(0)
-        self.prog_atual.pack(padx=30, pady=(4, 0))
+        self.lbl_a = ctk.CTkLabel(self, text="", text_color="gray60",
+                                   font=ctk.CTkFont(size=10), anchor="w")
+        self.lbl_a.pack(fill="x", padx=30)
 
-        self.lbl_detalhe = ctk.CTkLabel(self, text="",
-                                        text_color="gray60",
-                                        font=ctk.CTkFont(size=9))
-        self.lbl_detalhe.pack(pady=(4, 0))
+        self.bar_a = ctk.CTkProgressBar(self, width=480, progress_color="#2FA572")
+        self.bar_a.set(0)
+        self.bar_a.pack(padx=30, pady=(4, 0))
 
-    def atualizar(self, geral_txt, conta_txt, geral_pct,
-                  atual_txt, atual_pct, detalhe_txt=""):
-        self.lbl_geral.configure(text=geral_txt)
-        self.lbl_conta.configure(text=conta_txt)
-        self.prog_geral.set(geral_pct)
-        self.lbl_atual.configure(text=atual_txt)
-        self.prog_atual.set(atual_pct)
-        self.lbl_detalhe.configure(text=detalhe_txt)
+        self.lbl_d = ctk.CTkLabel(self, text="", text_color="gray60",
+                                   font=ctk.CTkFont(size=9))
+        self.lbl_d.pack(pady=(4, 0))
+
+    def atualizar(self, g_txt, c_txt, g_pct, a_txt, a_pct, d_txt=""):
+        self.lbl_g.configure(text=g_txt)
+        self.lbl_c.configure(text=c_txt)
+        self.bar_g.set(g_pct)
+        self.lbl_a.configure(text=a_txt)
+        self.bar_a.set(a_pct)
+        self.lbl_d.configure(text=d_txt)
 
 
 # ---------------------------------------------------------------------------
@@ -478,416 +474,359 @@ class App(ctk.CTk):
         self.title("DLC Unlocker by LinaPy")
         self.geometry("680x620")
         self.minsize(520, 420)
-
         self.config_dados = carregar_config()
-        self.gerenciador  = GerenciadorTorrents(
+        self.gerenciador  = GerenciadorDownloads(
             pasta_downloads=self.config_dados["pasta_downloads"],
-            log=self._log,
-        )
-
+            log=self._log)
         self._build_ui()
         self.protocol("WM_DELETE_WINDOW", self._fechar)
 
     def _build_ui(self):
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=20, pady=(20, 10))
-
-        ctk.CTkLabel(header, text="DLC Unlocker",
+        hdr = ctk.CTkFrame(self, fg_color="transparent")
+        hdr.pack(fill="x", padx=20, pady=(20, 10))
+        ctk.CTkLabel(hdr, text="DLC Unlocker",
                      font=ctk.CTkFont(size=24, weight="bold")).pack(side="left")
-
-        ctk.CTkButton(header, text="📂 Mover",
-                      width=90, fg_color="#1a5c2a", hover_color="#14451f",
+        ctk.CTkButton(hdr, text="📂 Mover", width=90,
+                      fg_color="#1a5c2a", hover_color="#14451f",
                       command=self._abrir_mover).pack(side="right", padx=(4, 0))
-
-        ctk.CTkButton(header, text="📦 Extrair",
-                      width=90, fg_color="#1a3a5c", hover_color="#14293f",
+        ctk.CTkButton(hdr, text="📦 Extrair", width=90,
+                      fg_color="#1a3a5c", hover_color="#14293f",
                       command=self._abrir_extrair).pack(side="right", padx=(4, 0))
-
-        ctk.CTkButton(header, text="🛠 EA Unlocker", width=120,
+        ctk.CTkButton(hdr, text="🛠 EA Unlocker", width=120,
                       command=self._abrir_unlocker).pack(side="right", padx=(4, 0))
+        self.lbl_count = ctk.CTkLabel(hdr, text=f"{len(ARQUIVOS)} itens",
+                                      text_color="gray60",
+                                      font=ctk.CTkFont(size=13))
+        self.lbl_count.pack(side="right", padx=(0, 10))
 
-        self.contador_label = ctk.CTkLabel(header,
-                                           text=f"{len(ARQUIVOS)} itens",
-                                           text_color="gray60",
-                                           font=ctk.CTkFont(size=13))
-        self.contador_label.pack(side="right", padx=(0, 10))
-
-        pasta_frame = ctk.CTkFrame(self, fg_color="transparent")
-        pasta_frame.pack(fill="x", padx=20, pady=(0, 10))
-
-        ctk.CTkLabel(pasta_frame, text="Pasta de downloads:",
+        pf = ctk.CTkFrame(self, fg_color="transparent")
+        pf.pack(fill="x", padx=20, pady=(0, 10))
+        ctk.CTkLabel(pf, text="Pasta de downloads:",
                      font=ctk.CTkFont(size=12)).pack(side="left", padx=(0, 8))
-
-        self.pasta_entry = ctk.CTkEntry(pasta_frame)
-        self.pasta_entry.insert(0, self.config_dados["pasta_downloads"])
-        self.pasta_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
-
-        ctk.CTkButton(pasta_frame, text="Alterar", width=80,
+        self.entry_pasta = ctk.CTkEntry(pf)
+        self.entry_pasta.insert(0, self.config_dados["pasta_downloads"])
+        self.entry_pasta.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        ctk.CTkButton(pf, text="Alterar", width=80,
                       command=self._alterar_pasta).pack(side="left")
 
-        busca_frame = ctk.CTkFrame(self, fg_color="transparent")
-        busca_frame.pack(fill="x", padx=20, pady=(0, 10))
+        bf = ctk.CTkFrame(self, fg_color="transparent")
+        bf.pack(fill="x", padx=20, pady=(0, 10))
+        self.entry_busca = ctk.CTkEntry(
+            bf, placeholder_text="🔍 Filtrar por nome ou tag...")
+        self.entry_busca.pack(fill="x")
+        self.entry_busca.bind("<KeyRelease>", lambda e: self._filtrar())
 
-        self.busca_entry = ctk.CTkEntry(
-            busca_frame, placeholder_text="🔍 Filtrar por nome ou tag...")
-        self.busca_entry.pack(fill="x")
-        self.busca_entry.bind("<KeyRelease>", lambda e: self._filtrar())
-
-        self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        self.scroll_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
-        self.scroll_frame.grid_columnconfigure(0, weight=1)
+        self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.scroll.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        self.scroll.grid_columnconfigure(0, weight=1)
 
         self.cartoes = {}
         self._montar_lista()
 
-        self.log_label = ctk.CTkLabel(self, text="", text_color="gray60",
-                                      anchor="w", font=ctk.CTkFont(size=11))
-        self.log_label.pack(fill="x", padx=20, pady=(0, 16))
+        self.lbl_log = ctk.CTkLabel(self, text="", text_color="gray60",
+                                    anchor="w", font=ctk.CTkFont(size=11))
+        self.lbl_log.pack(fill="x", padx=20, pady=(0, 16))
 
     def _abrir_unlocker(self):
         for w in self.winfo_children():
             if isinstance(w, UnlockerWindow):
-                w.lift()
-                return
+                w.lift(); return
         UnlockerWindow(self).focus_force()
 
-    def _log(self, mensagem):
-        self.after(0, lambda: self.log_label.configure(text=mensagem))
+    def _log(self, msg):
+        self.after(0, lambda: self.lbl_log.configure(text=msg))
         try:
-            escrever_log(mensagem)
+            escrever_log(msg)
         except Exception:
             pass
 
     def _montar_lista(self):
-        for w in self.scroll_frame.winfo_children():
+        for w in self.scroll.winfo_children():
             w.destroy()
         self.cartoes = {}
-
-        for indice, item in enumerate(ARQUIVOS):
-            item_id = item.get("torrent", "") + str(indice)
-            cartao  = CartaoArquivo(self.scroll_frame, item_id, item,
-                                    self._baixar_item)
+        for idx, item in enumerate(ARQUIVOS):
+            iid    = item.get("mediafire", "") + str(idx)
+            cartao = CartaoArquivo(self.scroll, iid, item, self._baixar_item)
             cartao.pack(fill="x", pady=6)
-            self.cartoes[item_id] = cartao
-            item["_item_id"] = item_id
-
-        self.contador_label.configure(text=f"{len(ARQUIVOS)} itens")
+            self.cartoes[iid] = cartao
+            item["_iid"] = iid
+        self.lbl_count.configure(text=f"{len(ARQUIVOS)} itens")
 
     def _filtrar(self):
-        termo    = self.busca_entry.get().strip().lower()
-        visiveis = 0
+        termo = self.entry_busca.get().strip().lower()
+        n = 0
         for item in ARQUIVOS:
-            cartao = self.cartoes.get(item.get("_item_id"))
-            if not cartao:
+            c = self.cartoes.get(item.get("_iid"))
+            if not c:
                 continue
             if not termo or termo in item["nome"].lower() or termo in item["tag"].lower():
-                cartao.pack(fill="x", pady=6)
-                visiveis += 1
+                c.pack(fill="x", pady=6); n += 1
             else:
-                cartao.pack_forget()
-        self.contador_label.configure(text=f"{visiveis} itens")
+                c.pack_forget()
+        self.lbl_count.configure(text=f"{n} itens")
 
-    def _baixar_item(self, item_id, item):
+    def _baixar_item(self, iid, item):
         url = item.get("mediafire", "")
         if not url:
-            self._log(f"⚠ Link não disponível para: {item['nome']}")
-            cartao = self.cartoes.get(item_id)
-            if cartao:
-                cartao.botao.configure(state="normal", text="⬇ Baixar")
-                cartao.status_label.configure(text="Link não disponível")
+            self._log(f"⚠ Link não disponível: {item['nome']}")
+            c = self.cartoes.get(iid)
+            if c:
+                c.btn_baixar.configure(state="normal", text="⬇ Baixar")
+                c.lbl_status.configure(text="Link não disponível")
+                c.btn_cancel.pack_forget()
             return
 
-        cartao = self.cartoes.get(item_id)
-
-        def callback_status(info):
-            c = self.cartoes.get(item_id)
+        def on_update(info):
+            c = self.cartoes.get(iid)
             if not c:
                 return
-            estado = info.get("estado", "")
-            prog   = info.get("progresso", 0)
-            vel    = info.get("velocidade", 0)
-            nome   = info.get("nome", "")
-
-            vel_txt = f"{vel/1024:.1f} MB/s" if vel >= 1024 else f"{vel:.0f} KB/s"
+            estado  = info["estado"]
+            prog    = info["progresso"]
+            vel     = info["velocidade"]
+            nome    = info["nome"]
+            total   = info.get("tamanho", 0)
+            baixado = info.get("baixado", 0)
+            v_txt   = f"{vel/1024:.1f} MB/s" if vel >= 1024 else f"{vel:.0f} KB/s"
 
             if estado == "resolvendo":
-                self.after(0, lambda: c.status_label.configure(
+                self.after(0, lambda: c.lbl_status.configure(
                     text="Resolvendo link…", text_color="gray60"))
+
+            elif estado == "iniciando":
+                tam_txt = f"({formatar_tamanho(total)})" if total else ""
+                self.after(0, lambda t=tam_txt: [
+                    c.lbl_tam.configure(text=t),
+                    c.lbl_status.configure(text="Conectando…", text_color="gray60"),
+                ])
+
             elif estado == "baixando":
-                self.after(0, lambda p=prog, v=vel_txt: [
-                    c.progress_bar.set(p),
-                    c.status_label.configure(
-                        text=f"Baixando • {p*100:.1f}% • {v}",
+                b_txt = formatar_tamanho(baixado)
+                t_txt = formatar_tamanho(total) if total else "?"
+                self.after(0, lambda p=prog, v=v_txt, b=b_txt, t=t_txt: [
+                    c.bar.set(p),
+                    c.lbl_status.configure(
+                        text=f"Baixando • {p*100:.1f}% • {b} / {t} • {v}",
                         text_color="gray60"),
                 ])
+
             elif estado == "concluido":
                 self.after(0, lambda: [
-                    c.progress_bar.set(1.0),
-                    c.status_label.configure(text="Concluído ✔", text_color="#2FA572"),
-                    c.botao.configure(text="Concluído", state="disabled"),
-                    c.botao_cancelar.grid_remove(),
+                    c.bar.set(1.0),
+                    c.lbl_status.configure(text="Concluído ✔", text_color="#2FA572"),
+                    c.btn_baixar.configure(text="Concluído", state="disabled"),
+                    c.btn_cancel.pack_forget(),
                 ])
-                self._log(f"✔ Download concluído: {item['nome']}")
+                self._log(f"✔ Concluído: {item['nome']}")
+
             elif estado == "cancelado":
                 self.after(0, lambda: [
-                    c.status_label.configure(text="Cancelado", text_color="gray60"),
-                    c.progress_bar.set(0),
-                    c.botao.configure(state="normal", text="⬇ Baixar"),
-                    c.botao_cancelar.grid_remove(),
-                    c.botao_cancelar.configure(state="normal", text="✕ Cancelar"),
+                    c.lbl_status.configure(text="Cancelado", text_color="gray60"),
+                    c.bar.set(0),
+                    c.btn_baixar.configure(state="normal", text="⬇ Baixar"),
+                    c.btn_cancel.pack_forget(),
+                    c.btn_cancel.configure(state="normal", text="✕ Cancelar"),
                 ])
-                self._log(f"Download cancelado: {item['nome']}")
+                self._log(f"Cancelado: {item['nome']} (arquivo mantido)")
+
             elif estado == "erro":
-                self.after(0, lambda: [
-                    c.status_label.configure(text=f"✘ Erro: {nome}", text_color="#ef4444"),
-                    c.botao.configure(state="normal", text="⬇ Baixar"),
-                    c.botao_cancelar.grid_remove(),
+                self.after(0, lambda n=nome: [
+                    c.lbl_status.configure(text=f"✘ {n}", text_color="#ef4444"),
+                    c.btn_baixar.configure(state="normal", text="⬇ Baixar"),
+                    c.btn_cancel.pack_forget(),
                 ])
                 self._log(f"✘ Erro: {item['nome']}: {nome}")
 
-        self.gerenciador.handles[item_id] = True
-        self.gerenciador.adicionar_mediafire(item_id, url, callback_status)
-        self._log(f"Download iniciado: {item['nome']}")
-
-        if cartao:
-            def cancelar(iid=item_id, c=cartao):
-                self.gerenciador.cancelar(iid)
-                c.status_label.configure(text="Cancelado", text_color="gray60")
-                c.progress_bar.set(0)
-                c.botao.configure(state="normal", text="⬇ Baixar")
-                c.botao_cancelar.grid_remove()
-                c.botao_cancelar.configure(state="normal", text="✕ Cancelar")
-                self._log(f"Download cancelado: {item['nome']} (progresso mantido)")
-            cartao._on_cancelar = cancelar
+        self.gerenciador.iniciar(iid, url, on_update)
+        self._log(f"Iniciando: {item['nome']}")
+        c = self.cartoes.get(iid)
+        if c:
+            c._on_cancelar = self.gerenciador.cancelar
 
     def _alterar_pasta(self):
         nova = filedialog.askdirectory(
-            title="Escolher pasta de downloads",
-            initialdir=self.config_dados["pasta_downloads"])
+            title="Escolher pasta", initialdir=self.config_dados["pasta_downloads"])
         if nova:
-            self.pasta_entry.delete(0, "end")
-            self.pasta_entry.insert(0, nova)
+            self.entry_pasta.delete(0, "end")
+            self.entry_pasta.insert(0, nova)
             self.config_dados["pasta_downloads"] = nova
             self.gerenciador.atualizar_pasta(nova)
             salvar_config(self.config_dados)
-            self._log(f"Pasta alterada para: {nova}")
+            self._log(f"Pasta: {nova}")
 
     def _fechar(self):
         self.gerenciador.parar()
         self.destroy()
 
-    def _pasta_downloads(self):
+    def _pasta_dl(self):
         return Path(self.config_dados["pasta_downloads"])
 
-    def _encontrar_pasta_sims(self):
+    def _encontrar_sims(self):
         home = Path.home()
-        steam_paths = [
+        caminhos = [
             home / ".local/share/Steam",
             home / ".steam/steam",
             home / "snap/steam/common/.local/share/Steam",
             home / ".var/app/com.valvesoftware.Steam/.local/share/Steam",
             home / ".var/app/com.valvesoftware.Steam/.steam/steam",
         ]
-        for steam in steam_paths:
+        for steam in caminhos:
             sims = steam / "steamapps/common/The Sims 4"
             if sims.exists():
                 return sims
             vdf = steam / "steamapps/libraryfolders.vdf"
             if vdf.exists():
                 try:
-                    content = vdf.read_text(encoding="utf-8", errors="ignore")
-                    for lib_path in re.findall(r'"path"\s+"([^"]+)"', content):
-                        sims = Path(lib_path) / "steamapps/common/The Sims 4"
+                    txt = vdf.read_text(encoding="utf-8", errors="ignore")
+                    for p in re.findall(r'"path"\s+"([^"]+)"', txt):
+                        sims = Path(p) / "steamapps/common/The Sims 4"
                         if sims.exists():
                             return sims
                 except Exception:
                     pass
         return None
 
+    # ── Extrair ────────────────────────────────────────────────────────────
     def _abrir_extrair(self):
-        pasta = self._pasta_downloads()
+        pasta = self._pasta_dl()
         zips  = list(pasta.glob("*.zip"))
         if not zips:
             messagebox.showwarning("Nada encontrado",
-                                   f"Nenhum .zip encontrado em:\n{pasta}")
+                                   f"Nenhum .zip em:\n{pasta}")
             return
-
         win = JanelaProgresso(self, "📦 Extraindo DLCs",
-                              f"{len(zips)} arquivo(s) .zip encontrado(s)")
-        threading.Thread(target=self._executar_extracao,
+                              f"{len(zips)} arquivo(s) encontrado(s)")
+        threading.Thread(target=self._run_extrair,
                          args=(zips, win), daemon=True).start()
 
-    def _executar_extracao(self, zips, win):
+    def _run_extrair(self, zips, win):
         total = len(zips)
         erros = []
-
-        for i, zip_path in enumerate(zips):
-            nome_zip      = zip_path.stem
-            pasta_destino = zip_path.parent / nome_zip
-
-            self.after(0, lambda n=nome_zip, i=i, t=total: win.atualizar(
-                f"Extraindo: {n}", f"{i} / {t}", i / t,
-                "Preparando…", 0))
-
+        for i, zp in enumerate(zips):
+            nome  = zp.stem
+            dest  = zp.parent / nome
+            self.after(0, lambda n=nome, i=i, t=total: win.atualizar(
+                f"Extraindo: {n}", f"{i} / {t}", i / t, "Preparando…", 0))
             try:
-                pasta_destino.mkdir(parents=True, exist_ok=True)
-
-                with zipfile.ZipFile(zip_path, "r") as zf:
-                    membros       = zf.infolist()
-                    total_membros = len(membros)
-
-                    for j, membro in enumerate(membros):
-                        zf.extract(membro, pasta_destino)
-                        pct     = (j + 1) / total_membros
-                        detalhe = f"{j+1} / {total_membros} arquivos"
-                        self.after(0, lambda p=pct, d=detalhe, n=nome_zip, i=i, t=total:
-                                   win.atualizar(
-                                       f"Extraindo: {n}", f"{i+1} / {t}", (i + p) / t,
-                                       f"Arquivo {j+1} de {total_membros}", p, d))
-
-                self._log(f"✔ Extraído: {nome_zip}")
-
+                dest.mkdir(parents=True, exist_ok=True)
+                with zipfile.ZipFile(zp, "r") as zf:
+                    membros = zf.infolist()
+                    tm = len(membros)
+                    for j, m in enumerate(membros):
+                        zf.extract(m, dest)
+                        p = (j + 1) / tm
+                        self.after(0,
+                            lambda p=p, j=j, tm=tm, n=nome, i=i, t=total:
+                            win.atualizar(f"Extraindo: {n}", f"{i+1} / {t}",
+                                          (i + p) / t, f"Arquivo {j+1} de {tm}",
+                                          p, f"{j+1} / {tm}"))
+                self._log(f"✔ Extraído: {nome}")
             except zipfile.BadZipFile:
-                erros.append(f"{nome_zip}: zip corrompido")
-                self._log(f"✘ Corrompido: {nome_zip}")
+                erros.append(f"{nome}: zip corrompido")
             except Exception as e:
-                erros.append(f"{nome_zip}: {e}")
-                self._log(f"✘ Erro: {nome_zip}: {e}")
+                erros.append(f"{nome}: {e}")
 
-        def finalizar():
+        def fim():
             win.destroy()
-            msg = f"Extração concluída!\n{total - len(erros)} de {total} arquivos extraídos."
+            msg = f"Extração concluída!\n{total - len(erros)} de {total}."
             if erros:
                 msg += "\n\nErros:\n" + "\n".join(f"• {e}" for e in erros)
-                messagebox.showwarning("Extração com erros", msg)
+                messagebox.showwarning("Erros na extração", msg)
             else:
                 messagebox.showinfo("Extração concluída", msg)
+        self.after(0, fim)
 
-        self.after(0, finalizar)
-
+    # ── Mover ──────────────────────────────────────────────────────────────
     def _abrir_mover(self):
-        pasta = self._pasta_downloads()
-
-        pastas_extraidas = [
-            p for p in pasta.iterdir()
-            if p.is_dir() and re.match(r'Sims4_DLC_', p.name, re.IGNORECASE)
-        ]
-
-        if not pastas_extraidas:
-            messagebox.showwarning(
-                "Nada encontrado",
-                f"Nenhuma pasta extraída encontrada em:\n{pasta}\n\n"
-                "Execute primeiro o botão 📦 Extrair.")
+        pasta = self._pasta_dl()
+        try:
+            pastas = [p for p in pasta.iterdir()
+                      if p.is_dir() and re.match(r'Sims4_DLC_', p.name, re.IGNORECASE)]
+        except FileNotFoundError:
+            pastas = []
+        if not pastas:
+            messagebox.showwarning("Nada encontrado",
+                                   f"Nenhuma pasta extraída em:\n{pasta}\n\n"
+                                   "Execute primeiro 📦 Extrair.")
             return
-
-        pasta_sims = self._encontrar_pasta_sims()
-        if not pasta_sims:
-            messagebox.showerror(
-                "Sims 4 não encontrado",
-                "Não foi possível localizar a pasta do The Sims 4.\n"
-                "Certifique-se de que o jogo está instalado via Steam.")
+        sims = self._encontrar_sims()
+        if not sims:
+            messagebox.showerror("Sims 4 não encontrado",
+                                 "Não foi possível localizar The Sims 4.\n"
+                                 "Certifique-se de que está instalado via Steam.")
             return
-
         win = JanelaProgresso(self, "📂 Movendo DLCs",
-                              f"{len(pastas_extraidas)} pasta(s) encontrada(s)")
-        threading.Thread(target=self._executar_mover,
-                         args=(pastas_extraidas, pasta_sims, win),
-                         daemon=True).start()
+                              f"{len(pastas)} pasta(s) encontrada(s)")
+        threading.Thread(target=self._run_mover,
+                         args=(pastas, sims, win), daemon=True).start()
 
-    def _executar_mover(self, pastas_extraidas, pasta_sims, win):
-        total   = len(pastas_extraidas)
+    def _run_mover(self, pastas, sims, win):
+        total   = len(pastas)
         erros   = []
         pulados = []
-        padrao  = re.compile(r'^(EP|GP|SP|FP|KT)\d+', re.IGNORECASE)
+        pad     = re.compile(r'^(EP|GP|SP|FP|KT)\d+', re.IGNORECASE)
+        dst_r   = sims
+        dst_d   = sims / "__Installer" / "DLC"
 
-        dst_raiz = pasta_sims
-        dst_dlc  = pasta_sims / "__Installer" / "DLC"
-
-        for i, pasta_extracao in enumerate(pastas_extraidas):
-            nome = pasta_extracao.name
-
+        for i, pasta in enumerate(pastas):
+            nome = pasta.name
             self.after(0, lambda n=nome, i=i, t=total: win.atualizar(
-                f"Processando: {n}", f"{i} / {t}", i / t,
-                "Localizando pastas…", 0))
+                f"Processando: {n}", f"{i} / {t}", i / t, "Localizando…", 0))
 
-            pasta_raiz_dlc = next(
-                (p for p in pasta_extracao.iterdir()
-                 if p.is_dir() and padrao.match(p.name)), None)
+            raiz = next((p for p in pasta.iterdir()
+                         if p.is_dir() and pad.match(p.name)), None)
+            dlc_dir = None
+            inst = pasta / "__Installer" / "DLC"
+            if inst.exists():
+                dlc_dir = next((p for p in inst.iterdir()
+                                if p.is_dir() and pad.match(p.name)), None)
 
-            installer_dlc = pasta_extracao / "__Installer" / "DLC"
-            pasta_dlc_dir = None
-            if installer_dlc.exists():
-                pasta_dlc_dir = next(
-                    (p for p in installer_dlc.iterdir()
-                     if p.is_dir() and padrao.match(p.name)), None)
-
-            movidos = 0
-            alvos   = [
-                (pasta_raiz_dlc, dst_raiz, "raiz do jogo"),
-                (pasta_dlc_dir,  dst_dlc,  "__Installer/DLC"),
-            ]
-
-            for src, dst_base, label in alvos:
+            for src, base, label in [(raiz, dst_r, "raiz"),
+                                     (dlc_dir, dst_d, "__Installer/DLC")]:
                 if src is None:
                     continue
-
-                dst = dst_base / src.name
-
+                dst = base / src.name
                 if dst.exists():
-                    ev  = threading.Event()
-                    res = [False]
-
-                    def perguntar(s=src, lb=label, ev=ev, res=res):
+                    ev, res = threading.Event(), [False]
+                    def ask(s=src, lb=label, ev=ev, res=res):
                         res[0] = messagebox.askyesno(
-                            "Pasta já existe",
+                            "Já existe",
                             f"'{s.name}' já existe em {lb}.\n\nSubstituir?")
                         ev.set()
-
-                    self.after(0, perguntar)
+                    self.after(0, ask)
                     ev.wait()
-
                     if not res[0]:
-                        pulados.append(f"{src.name} em {label}")
-                        continue
+                        pulados.append(f"{src.name} em {label}"); continue
                     shutil.rmtree(dst)
-
-                dst_base.mkdir(parents=True, exist_ok=True)
+                base.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(src), str(dst))
-                movidos += 1
                 self._log(f"✔ Movido: {src.name} → {label}")
 
-            pct_atual = 1.0 if movidos > 0 else 0.0
-            self.after(0, lambda n=nome, i=i+1, t=total, p=pct_atual: win.atualizar(
-                f"Concluído: {n}", f"{i} / {t}", i / t,
-                "Concluído", p))
+            self.after(0, lambda n=nome, i=i+1, t=total: win.atualizar(
+                f"Concluído: {n}", f"{i} / {t}", i / t, "Concluído", 1.0))
 
-        def finalizar():
+        def fim():
             win.destroy()
             msg = "Movimento concluído!"
             if pulados:
-                msg += f"\n\nPulados ({len(pulados)}):\n" + "\n".join(f"• {p}" for p in pulados)
+                msg += f"\n\nPulados:\n" + "\n".join(f"• {p}" for p in pulados)
             if erros:
-                msg += f"\n\nErros ({len(erros)}):\n" + "\n".join(f"• {e}" for e in erros)
-            if erros:
-                messagebox.showwarning("Concluído com erros", msg)
-            else:
-                messagebox.showinfo("Concluído", msg)
-
-        self.after(0, finalizar)
+                msg += f"\n\nErros:\n" + "\n".join(f"• {e}" for e in erros)
+            (messagebox.showwarning if erros else messagebox.showinfo)(
+                "Concluído com erros" if erros else "Concluído", msg)
+        self.after(0, fim)
 
 
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    def abrir_app_principal():
-        app = App()
-        app.mainloop()
+    def abrir_app():
+        App().mainloop()
 
-    splash = SplashScreen(
+    SplashScreen(
         caminho_imagem=str(BASE_DIR / "assets" / "__.jpeg"),
         texto=(
-            "A pirataria surge quando o valor de uma obra encontra a realidade "
-            "de quem não pode alcançá-la.\n\npirateie TUDO que você puder!"
+            "A pirataria surge quando o valor de uma obra\n"
+            "encontra a realidade de quem não pode alcançá-la.\n\n"
+            "pirateie TUDO que você puder!"
         ),
-        ao_continuar=abrir_app_principal,
-    )
-    splash.mainloop()
+        ao_continuar=abrir_app,
+    ).mainloop()
