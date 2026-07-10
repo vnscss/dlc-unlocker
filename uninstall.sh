@@ -40,6 +40,33 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Perguntar sobre Python 
+# ---------------------------------------------------------------------------
+echo ""
+echo -e "${AMARELO}==========================================================${RESET}"
+echo -e "${AMARELO}  ATENÇÃO: Remoção do Python${RESET}"
+echo -e "${AMARELO}==========================================================${RESET}"
+echo ""
+echo "  O Python pode ser usado por outros programas no seu sistema."
+echo "  Remover python3 / python3-pip pode quebrar ferramentas do sistema."
+echo ""
+echo -e "  Deseja remover o Python e pip junto com os outros pacotes?"
+echo -e "  ${VERDE}[s]${RESET} Sim, remover Python e pip também"
+echo -e "  ${AZUL}[n]${RESET} Não, manter Python e pip intactos  ${AMARELO}(recomendado)${RESET}"
+echo ""
+read -rp "  Sua escolha [s/N]: " REMOVER_PYTHON
+echo ""
+
+REMOVER_PYTHON="${REMOVER_PYTHON,,}"   # lowercase
+if [[ "$REMOVER_PYTHON" == "s" || "$REMOVER_PYTHON" == "sim" ]]; then
+    REMOVER_PYTHON=true
+    aviso "Python e pip serão removidos."
+else
+    REMOVER_PYTHON=false
+    ok "Python e pip serão mantidos."
+fi
+
+# ---------------------------------------------------------------------------
 # Descobrir binário do Python
 # ---------------------------------------------------------------------------
 PYTHON_BIN="$(command -v python3 || true)"
@@ -69,36 +96,57 @@ remover_arch() {
     info "Removendo pacotes via pacman..."
     $SUDO pacman -Rns --noconfirm \
         python-pillow unzip p7zip unrar 2>/dev/null || true
-    aviso "python, python-pip e tk não foram removidos — podem ser dependências de outros programas."
+
+    if [ "$REMOVER_PYTHON" = true ]; then
+        info "Removendo Python e pip via pacman..."
+        $SUDO pacman -Rns --noconfirm python python-pip tk 2>/dev/null || true
+    fi
 }
 
 remover_debian() {
     info "Removendo pacotes via apt..."
     $SUDO apt remove -y \
         python3-tk python3-pil unzip p7zip-full unrar 2>/dev/null || true
+
+    if [ "$REMOVER_PYTHON" = true ]; then
+        info "Removendo Python e pip via apt..."
+        $SUDO apt remove -y python3 python3-pip 2>/dev/null || true
+    fi
+
     $SUDO apt autoremove -y
-    aviso "python3 e python3-pip não foram removidos — podem ser dependências de outros programas."
 }
 
 remover_fedora() {
     info "Removendo pacotes via dnf..."
     $SUDO dnf remove -y \
         python3-tkinter python3-pillow unzip p7zip unrar 2>/dev/null || true
-    aviso "python3 e python3-pip não foram removidos — podem ser dependências de outros programas."
+
+    if [ "$REMOVER_PYTHON" = true ]; then
+        info "Removendo Python e pip via dnf..."
+        $SUDO dnf remove -y python3 python3-pip 2>/dev/null || true
+    fi
 }
 
 remover_opensuse() {
     info "Removendo pacotes via zypper..."
     $SUDO zypper --non-interactive remove \
         python3-tk python3-Pillow unzip p7zip unrar 2>/dev/null || true
-    aviso "python3 e python3-pip não foram removidos — podem ser dependências de outros programas."
+
+    if [ "$REMOVER_PYTHON" = true ]; then
+        info "Removendo Python e pip via zypper..."
+        $SUDO zypper --non-interactive remove python3 python3-pip 2>/dev/null || true
+    fi
 }
 
 remover_alpine() {
     info "Removendo pacotes via apk..."
     $SUDO apk del \
         python3-tkinter py3-pillow unzip p7zip unrar 2>/dev/null || true
-    aviso "python3 e py3-pip não foram removidos — podem ser dependências de outros programas."
+
+    if [ "$REMOVER_PYTHON" = true ]; then
+        info "Removendo Python e pip via apk..."
+        $SUDO apk del python3 py3-pip 2>/dev/null || true
+    fi
 }
 
 case "$DISTRO_ID" in
