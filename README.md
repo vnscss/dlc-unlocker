@@ -13,7 +13,7 @@
 ---
 
 <!-- Substitua pela URL real da sua screenshot -->
-![Screenshot](https://i.imgur.com/qzyTwHG.png)
+![Screenshot](assets/png.png)
 
 ---
 
@@ -25,7 +25,7 @@ DLC Unlocker é uma interface gráfica em Python para baixar, extrair e instalar
 
 ## Funcionalidades
 
-- Download direto via Mediafire com barra de progresso
+- Download direto via Mediafire com barra de progresso e suporte a cancelamento
 - Filtro em tempo real por nome ou tipo de pacote
 - Extração automática dos `.zip` com progresso por arquivo
 - Movimentação das pastas extraídas para o local correto do jogo (detectado automaticamente via Steam)
@@ -40,18 +40,17 @@ DLC Unlocker é uma interface gráfica em Python para baixar, extrair e instalar
 
 - Python 3.10 ou superior
 - Steam com The Sims 4 instalado
+- Wine, Lutris, Bottles ou Steam Play (para o EA Unlocker)
 
 ---
 
 ## Instalação
-abra o dlc-unlocker no terminal e rode para instalar as dependências.
+
 ```bash
+git clone https://github.com/seu-usuario/dlc-unlocker.git
+cd dlc-unlocker
 chmod +x install.sh
 ./install.sh
-```
-depois de instalar as dependências, rode para abrir o programa.
-```bash
-python3 main.py
 ```
 
 O `install.sh` detecta a sua distribuição automaticamente e instala as dependências:
@@ -83,6 +82,49 @@ python3 main.py
 
 ---
 
+## Estrutura do projeto
+
+```
+dlc-unlocker/
+├── main.py               # Ponto de entrada
+├── install.sh            # Instalador de dependências
+├── assets/               # Imagens da interface
+│   ├── _.jpeg
+│   ├── __.jpeg
+│   └── png.png
+├── core/                 # Módulos internos
+│   ├── ea_unlocker.py    # Lógica do EA Unlocker
+│   ├── splash.py         # Tela de splash
+│   ├── config.ini        # Config do unlocker
+│   ├── g_TS4.ini         # Config do jogo
+│   └── ea_app/
+│       └── version.dll
+├── configs/              # Configurações do app (gerado automaticamente)
+│   └── config.json
+└── logs/                 # Logs de execução (gerado automaticamente)
+    └── dlc_manager.log
+```
+
+---
+
+## Adicionando novos DLCs
+
+Abra `main.py` e adicione uma entrada na lista `ARQUIVOS`:
+
+```python
+{"nome": "GP01 — Outdoor Retreat", "tag": "Game Pack", "mediafire": "https://www.mediafire.com/file/.../file"},
+```
+
+Tags disponíveis e suas cores:
+
+| Tag | Cor |
+|---|---|
+| `Expansion Pack` | Roxo |
+| `Game Pack` | — |
+| `Stuff Pack` | — |
+| `Kit` | — |
+
+---
 
 ## Screenshots
 
@@ -90,7 +132,7 @@ python3 main.py
 
 | Interface principal | EA Unlocker | Extração |
 |---|---|---|
-| ![main](https://i.imgur.com/0rKU67W.png) | ![unlocker](https://i.imgur.com/17UNqjl.png) | ![zip](https://i.imgur.com/fAZd0B5.png) |
+| ![main](assets/_.jpeg) | *em breve* | *em breve* |
 
 ---
 
