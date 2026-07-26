@@ -25,7 +25,7 @@ from ea_unlocker import EAUnlocker     # type: ignore[import]
 # DADOS
 # ---------------------------------------------------------------------------
 ARQUIVOS: list[dict] = []
-CORES_TAG      = {"Expansion Pack": "#98008E", "KIT": "#FF0000"}
+CORES_TAG      = {"Expansion Pack": "#98008E", "KIT": "#FF0000", "Free Pack": "#008000", "Game Pack": "#0000FF", "Stuff Pack": "#FFA500"}
 COR_TAG_PADRAO = "#5A5A5A"
 
 # ---------------------------------------------------------------------------
